@@ -1,0 +1,409 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<title>repcommit / custom brand prototype</title>
+<style>
+:root{
+  --ink:#ECE9E0;
+  --ink-dim:#A5A49D;
+  --ink-faint:#6E706C;
+  --bg:#0D0F0F;
+  --panel:#121514;
+  --panel-2:#171A18;
+  --panel-3:#1D211E;
+  --line:#2A2E2B;
+  --line-strong:#3A403B;
+  --signal:#F05A3A;      /* signature gitpush signal */
+  --signal-dark:#6F251B;
+  --mint:#9BC9B5;        /* data-only success signal */
+  --warning:#E4A35A;     /* only for urgency */
+  --danger:#C95C5C;
+  --paper:#F1EEE6;
+  --black:#11120F;
+  --sans:ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  --display:"Arial Narrow","Avenir Next Condensed",ui-sans-serif,sans-serif;
+  --mono:"SFMono-Regular",Consolas,"Liberation Mono",monospace;
+  --r:14px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{min-height:100vh;background:#080909;color:var(--ink);font-family:var(--sans);-webkit-font-smoothing:antialiased}
+button,input{font:inherit;color:inherit}button{cursor:pointer}button:focus-visible,input:focus-visible{outline:2px solid var(--signal);outline-offset:3px}
+.shell{min-height:100vh;display:grid;place-items:center;padding:20px;background:linear-gradient(180deg,#0A0B0B,#070808)}
+.phone{width:min(402px,100%);height:min(860px,calc(100vh - 32px));background:var(--bg);border:1px solid #222522;position:relative;overflow:hidden;box-shadow:0 36px 120px rgba(0,0,0,.75),0 0 0 1px rgba(255,255,255,.015)}
+@media(max-width:520px){.shell{padding:0}.phone{width:100%;height:100vh;border:0}}
+.status{height:28px;padding:9px 17px 0;display:flex;justify-content:space-between;font:700 9px var(--mono);color:var(--ink-faint);letter-spacing:.02em}
+.app{height:calc(100% - 28px);position:relative;display:flex;flex-direction:column}
+.view{display:none;flex:1;min-height:0}.view.active{display:flex;flex-direction:column}.scroll{overflow-y:auto;overflow-x:hidden;scrollbar-width:none}.scroll::-webkit-scrollbar{display:none}
+/* brand language */
+.kicker{font:700 8px var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--ink-faint)}
+.title{font:800 20px/1 var(--display);letter-spacing:-.035em}
+.rule{height:1px;background:var(--line)}
+.wordmark{font:900 17px/1 var(--display);letter-spacing:-.08em;text-transform:lowercase}
+.brand-mark{width:31px;height:31px;border:1px solid var(--line-strong);position:relative;display:grid;place-items:center;background:var(--panel-2)}
+.brand-mark:before{content:"";width:9px;height:9px;background:var(--signal);position:absolute;left:5px;top:5px}.brand-mark:after{content:"";width:8px;height:2px;background:var(--ink);position:absolute;right:5px;bottom:6px;transform:skew(-28deg)}
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:15px 16px 11px}.brand-lock{display:flex;gap:9px;align-items:center}.brand-lock small{display:block;color:var(--ink-faint);font:700 7px var(--mono);letter-spacing:.14em;text-transform:uppercase;margin-bottom:3px}
+.icon-btn{width:34px;height:34px;background:var(--panel);border:1px solid var(--line);display:grid;place-items:center;position:relative}.icon-btn .dot{position:absolute;right:5px;top:5px;width:5px;height:5px;background:var(--signal)}
+.content{padding:0 15px 102px;display:flex;flex-direction:column;gap:13px}
+/* home */
+.today-head{padding:7px 1px 2px;display:flex;justify-content:space-between;align-items:flex-end}.today-head h1{font:900 30px/.92 var(--display);letter-spacing:-.06em}.today-head p{font-size:10px;color:var(--ink-faint);max-width:128px;text-align:right;line-height:1.45}
+.instrument{border-top:1px solid var(--line-strong);border-bottom:1px solid var(--line-strong);padding:14px 0 13px;display:grid;grid-template-columns:1fr 115px;gap:12px}.instrument-left{display:flex;flex-direction:column;justify-content:space-between;min-height:144px}.micro{font:700 8px var(--mono);text-transform:uppercase;letter-spacing:.12em;color:var(--ink-faint)}.push-readout{font:900 70px/.75 var(--display);letter-spacing:-.075em}.push-readout span{font:700 10px var(--mono);letter-spacing:.02em;color:var(--ink-faint);margin-left:5px}.goal-line{margin-top:8px;height:6px;background:#232724;position:relative}.goal-line i{position:absolute;left:0;top:0;height:100%;background:var(--signal);width:70%}.goal-meta{display:flex;justify-content:space-between;font:700 8px var(--mono);color:var(--ink-faint);margin-top:6px}.instrument-side{border-left:1px solid var(--line);padding-left:12px;display:flex;flex-direction:column;gap:12px}.side-stat strong{display:block;font:900 21px/.9 var(--display);letter-spacing:-.04em}.side-stat span{display:block;font:700 7px var(--mono);color:var(--ink-faint);text-transform:uppercase;letter-spacing:.1em;margin-top:4px}
+.push-main{height:54px;background:var(--signal);color:#16100D;border:0;padding:0 14px;display:flex;align-items:center;justify-content:space-between;font:900 13px var(--display);letter-spacing:.01em}.push-main .push-key{font:800 8px var(--mono);padding:5px 6px;border:1px solid rgba(20,12,9,.22)}
+/* prediction */
+.section-head{display:flex;justify-content:space-between;align-items:baseline}.section-head h2{font:800 13px var(--display);letter-spacing:-.02em}.section-head span{font:700 8px var(--mono);color:var(--ink-faint);text-transform:uppercase;letter-spacing:.12em}
+.forecast{border:1px solid var(--line);background:var(--panel);display:grid;grid-template-columns:1fr 92px}.forecast-main{padding:13px}.forecast-main .big{font:900 28px/.95 var(--display);letter-spacing:-.05em;margin:5px 0 6px}.forecast-main p{font-size:9px;line-height:1.5;color:var(--ink-dim);max-width:205px}.forecast-main b{color:var(--ink)}.forecast-side{border-left:1px solid var(--line);padding:13px;display:flex;flex-direction:column;justify-content:space-between}.confidence{font:900 24px/.9 var(--display)}.confidence small{font:700 7px var(--mono);color:var(--ink-faint);display:block;margin-top:5px;text-transform:uppercase}.forecast-bar{display:flex;gap:3px;margin-top:10px}.forecast-bar i{height:6px;flex:1;background:#282C29}.forecast-bar i.on{background:var(--mint)}
+/* activity visual */
+.activity-strip{border:1px solid var(--line);background:var(--panel);padding:12px 11px}
+.heatmap-shell{border:1px solid var(--line);background:var(--panel);padding:12px 10px 10px;overflow:hidden}
+.heatmap-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px}.heatmap-head b{font:900 14px var(--display);letter-spacing:-.03em}.heatmap-head span{font:700 7px var(--mono);color:var(--ink-faint);text-transform:uppercase;letter-spacing:.08em}
+.heatmap-wrap{display:grid;grid-template-columns:20px 1fr;gap:6px}.heatmap-days{display:grid;grid-template-rows:repeat(7,10px);row-gap:3px;font:700 6px var(--mono);color:var(--ink-faint);padding-top:13px}.heatmap-scroll{overflow-x:auto;scrollbar-width:none;padding:0 1px 2px}.heatmap-scroll::-webkit-scrollbar{display:none}.heatmap-months{height:12px;position:relative;font:700 6px var(--mono);color:var(--ink-faint);min-width:650px}.heatmap-months span{position:absolute;top:0;white-space:nowrap}.heatmap-grid{display:grid;grid-template-rows:repeat(7,10px);grid-auto-flow:column;grid-auto-columns:10px;gap:3px;min-width:max-content}.heat-cell{width:10px;height:10px;background:#1C201D;border:1px solid rgba(255,255,255,.025);position:relative}.heat-cell.l1{background:#304238}.heat-cell.l2{background:#4F695B}.heat-cell.l3{background:#7EA68E}.heat-cell.l4{background:var(--mint)}.heat-cell.future{background:#151817;border-color:#222622;opacity:.8}.heat-cell.today{outline:1px solid var(--signal);outline-offset:1px}.heat-cell:hover{outline:1px solid var(--ink-faint);outline-offset:1px;z-index:2}.heatmap-note{display:flex;justify-content:space-between;align-items:center;margin-top:8px;padding-top:8px;border-top:1px solid var(--line);font:700 7px var(--mono);color:var(--ink-faint)}.heat-legend{display:flex;gap:4px;align-items:center}.heat-legend i{width:8px;height:8px;display:block}.heat-legend i:nth-child(2){background:#1C201D}.heat-legend i:nth-child(3){background:#304238}.heat-legend i:nth-child(4){background:#4F695B}.heat-legend i:nth-child(5){background:#7EA68E}.heat-legend i:nth-child(6){background:var(--mint)}
+.daily-drop{border-top:1px solid var(--line-strong);border-bottom:1px solid var(--line-strong);padding:13px 0 12px}.daily-drop .drop-head{display:flex;justify-content:space-between;align-items:center}.daily-drop .drop-tag{font:700 7px var(--mono);text-transform:uppercase;letter-spacing:.14em;color:var(--signal)}.daily-drop blockquote{font:800 17px/1.08 var(--display);letter-spacing:-.035em;margin:8px 0 7px;max-width:330px}.daily-drop p{font-size:9px;line-height:1.45;color:var(--ink-dim)}.daily-drop .drop-foot{display:flex;justify-content:space-between;margin-top:9px;font:700 7px var(--mono);color:var(--ink-faint);text-transform:uppercase;letter-spacing:.08em}.daily-drop .drop-action{border:0;background:none;color:var(--ink);font:800 7px var(--mono);letter-spacing:.08em;text-transform:uppercase}
+.bars{height:74px;display:flex;align-items:stretch;gap:5px}.bars .b{flex:1;display:flex;flex-direction:column;justify-content:end;gap:4px}.bars .fill{height:50%;background:var(--panel-3);position:relative}.bars .fill:before{content:"";position:absolute;inset:0 0 auto 0;height:100%;background:var(--mint)}.bars .today .fill:before{background:var(--signal)}.bars label{text-align:center;font:700 7px var(--mono);color:var(--ink-faint)}.bar-meta{display:flex;justify-content:space-between;margin-top:9px;padding-top:8px;border-top:1px solid var(--line);font:700 8px var(--mono);color:var(--ink-faint)}
+/* crew pulse */
+.pulse{display:grid;grid-template-columns:repeat(3,1fr);border:1px solid var(--line);background:var(--panel)}.pulse-cell{padding:11px;border-right:1px solid var(--line)}.pulse-cell:last-child{border-right:0}.pulse-top{display:flex;justify-content:space-between;align-items:center}.avatar-mini{width:22px;height:22px;background:var(--panel-3);border:1px solid var(--line-strong);display:grid;place-items:center;font:900 8px var(--mono);color:var(--ink)}.pulse-num{font:900 16px/.9 var(--display)}.pulse-name{font-size:8px;color:var(--ink-faint);margin-top:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* bottom nav */
+.nav{position:absolute;left:10px;right:10px;bottom:10px;height:60px;display:grid;grid-template-columns:1fr 1fr 1.25fr 1fr 1fr;background:#111312;border:1px solid var(--line-strong);z-index:20}.nav button{border:0;background:transparent;color:var(--ink-faint);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font:700 7px var(--mono);text-transform:uppercase;letter-spacing:.06em;position:relative}.nav button.active{color:var(--ink)}.nav button.active:after{content:"";width:15px;height:2px;background:var(--signal);position:absolute;bottom:6px}.nav .center{background:var(--signal);color:#16100D;margin:5px;align-self:center;height:50px;justify-self:stretch}.nav svg{width:16px;height:16px;stroke-width:1.6}.nav .center svg{width:18px;height:18px}
+/* logger */
+.backdrop{position:absolute;inset:0;background:rgba(5,6,6,.78);backdrop-filter:blur(5px);z-index:40;opacity:0;pointer-events:none;transition:.2s}.backdrop.open{opacity:1;pointer-events:auto}.sheet{position:absolute;left:10px;right:10px;bottom:10px;background:var(--paper);color:var(--black);z-index:41;transform:translateY(110%);transition:.28s cubic-bezier(.2,.8,.2,1);padding:15px}.backdrop.open .sheet{transform:translateY(0)}
+.backdrop.open + .sheet{transform:translateY(0)}.sheet .micro{color:#77766F}.sheet h2{font:900 21px/.95 var(--display);letter-spacing:-.04em}.sheet-sub{font-size:10px;color:#63625B;margin-top:5px}.counter{display:grid;grid-template-columns:44px 1fr 44px;gap:10px;align-items:center;padding:18px 0}.round{height:44px;border:1px solid #D5D1C8;background:#E9E5DB;color:#171713;font-size:22px}.counter strong{text-align:center;font:900 62px/.8 var(--display);letter-spacing:-.08em}.quick{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}.quick button{height:34px;border:1px solid #D0CBC0;background:#E6E2D9;font:800 9px var(--mono)}.sheet-actions{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px}.sheet-actions button{height:43px}.sheet .cancel{border:1px solid #D0CBC0;background:#E9E5DB}.sheet .save{border:0;background:var(--signal);color:#150E0A;font-weight:900}
+/* activity */
+.page-title{padding:12px 16px 10px}.page-title h1{font:900 30px/.94 var(--display);letter-spacing:-.06em}.page-title p{font-size:10px;color:var(--ink-faint);margin-top:5px}
+.history{border-top:1px solid var(--line-strong);background:var(--panel)}
+.history::before{content:"RECENT PUSHES";display:block;padding:11px 12px 9px;font:900 8px var(--mono);letter-spacing:.14em;color:var(--ink-faint);border-bottom:1px solid var(--line);}
+.log{position:relative;display:grid;grid-template-columns:56px 1fr 56px;gap:10px;align-items:center;min-height:68px;padding:9px 12px;border-bottom:1px solid var(--line);background:var(--panel);text-align:left;transition:background .16s ease}
+.log:hover{background:var(--panel-2)}
+.log:last-child{border-bottom:0}
+.log::before{content:"";position:absolute;left:20px;top:0;bottom:0;width:1px;background:#2E332F}
+.log:first-of-type::before{top:50%}
+.log:last-child::before{bottom:50%}
+.date{position:relative;z-index:1;width:43px;text-align:left;padding-left:10px;color:var(--ink-faint);font:700 7px var(--mono);letter-spacing:.08em}
+.date::before{content:"";position:absolute;left:7px;top:50%;width:7px;height:7px;transform:translate(-50%,-50%);background:var(--signal);border:2px solid var(--panel)}
+.date b{display:block;font:900 18px/.9 var(--display);letter-spacing:-.05em;color:var(--ink);padding-left:0;margin-bottom:4px}
+.log:nth-child(n+3) .date::before{background:var(--mint)}
+.log h3{font:900 12px/1 var(--display);letter-spacing:-.02em;color:var(--ink)}
+.log p{font:700 7px/1.35 var(--mono);color:var(--ink-faint);margin-top:5px}
+.log p::first-letter{color:var(--ink-faint)}
+.log strong{justify-self:end;font:900 19px/.9 var(--display);letter-spacing:-.04em;color:var(--mint)}
+.log strong::after{content:" push-ups";display:block;margin-top:4px;font:700 6px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint)}
+@media(max-width:360px){.log{grid-template-columns:51px 1fr 52px;gap:8px;padding-left:10px;padding-right:10px}.log strong{font-size:17px}.date{width:39px}}
+/* crew */
+.segment{display:grid;grid-template-columns:repeat(3,1fr);border-bottom:1px solid var(--line);margin:0 15px}.segment button{height:36px;border:0;background:transparent;color:var(--ink-faint);font:800 8px var(--mono);text-transform:uppercase;letter-spacing:.1em;position:relative}.segment button.active{color:var(--ink)}.segment button.active:after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;background:var(--signal)}.request-list,.friend-list{padding:0 15px}.request{display:grid;grid-template-columns:30px 1fr auto;gap:9px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}.avatar{width:30px;height:30px;background:var(--panel-3);display:grid;place-items:center;border:1px solid var(--line-strong);font:900 9px var(--mono)}.request h3{font-size:10px;font-weight:800}.request p{font-size:8px;color:var(--ink-faint);margin-top:3px}.req-actions{display:flex;gap:4px}.req-actions button{height:28px;padding:0 8px;font:800 8px var(--mono)}.accept{background:var(--mint);color:#101513;border:0}.decline{background:transparent;border:1px solid var(--line-strong);color:var(--ink-faint)}.friend{display:grid;grid-template-columns:30px 1fr auto;gap:9px;align-items:center;padding:11px 0;border-bottom:1px solid var(--line)}.friend h3{font-size:10px}.friend p{font-size:8px;color:var(--ink-faint);margin-top:3px}.friend strong{font:800 10px var(--mono)}
+/* field notes */
+.field-notes{padding:14px 15px 24px;border-top:1px solid var(--line);margin-top:2px}
+.field-notes .section-head{margin-bottom:9px}
+.truth-panel{border:1px solid var(--line-strong);background:var(--panel-2);padding:14px 13px}
+.truth-kicker{font:800 7px var(--mono);letter-spacing:.16em;color:var(--signal);margin-bottom:10px}
+.truth-panel h2{font:900 27px/.88 var(--display);letter-spacing:-.055em}
+.truth-panel p{font-size:9px;line-height:1.55;color:var(--ink-dim);max-width:300px;margin-top:10px}
+.truth-mark{border-top:1px solid var(--line);margin-top:12px;padding-top:9px;font:800 7px var(--mono);letter-spacing:.12em;color:var(--ink-faint)}
+.drops-board{margin-top:8px;border-top:1px solid var(--line);padding-top:10px}
+.drops-board-head{display:flex;justify-content:space-between;align-items:center;font:800 8px var(--mono);text-transform:uppercase;letter-spacing:.08em}
+.drops-board-head button{border:0;background:transparent;color:var(--signal);font:800 8px var(--mono)}
+.drops-board .daily-rail-items{display:flex;gap:5px;overflow-x:auto;scrollbar-width:none;margin-top:8px}
+.drops-board .daily-rail-items::-webkit-scrollbar{display:none}
+.drops-board .daily-rail-items span{border:1px solid var(--line);padding:7px 8px;white-space:nowrap;font:700 7px var(--mono);color:var(--ink-faint);background:var(--panel)}
+/* profile */
+.profile-band{padding:14px 15px 13px;border-bottom:1px solid var(--line);display:grid;grid-template-columns:64px 1fr;gap:11px}.profile-avatar{width:64px;height:64px;background:var(--signal);display:grid;place-items:center;color:#1B0F0B;font:900 24px var(--display)}.profile-band h1{font:900 22px/.9 var(--display);letter-spacing:-.05em}.profile-band p{font-size:9px;color:var(--ink-faint);margin-top:5px}.xp{height:4px;background:#2A2D2A;margin-top:10px}.xp i{display:block;height:100%;width:64%;background:var(--signal)}.stats{display:grid;grid-template-columns:repeat(4,1fr);border-bottom:1px solid var(--line)}.stat{padding:12px 8px;border-right:1px solid var(--line)}.stat:last-child{border-right:0}.stat b{font:900 16px/.9 var(--display)}.stat span{display:block;font:700 7px var(--mono);color:var(--ink-faint);text-transform:uppercase;margin-top:5px}.achievements{padding:13px 15px}.ach-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-top:9px}.ach{border:1px solid var(--line);padding:10px 4px;text-align:center;background:var(--panel);min-height:63px}.ach.unlocked{border-color:#4a554e}.ach.locked{opacity:.42}.ach b{display:block;font:900 12px var(--display);color:var(--signal)}.ach.locked b{color:var(--ink-faint)}.ach span{display:block;font-size:7px;line-height:1.15;color:var(--ink-faint);margin-top:4px}
+/* intro */
+.intro{height:100%;padding:20px 18px 18px;display:flex;flex-direction:column;justify-content:space-between;background:var(--bg)}.intro-brand{display:flex;align-items:center;gap:8px}.intro-mark{width:42px;height:42px;background:var(--signal);color:#160D08;display:grid;place-items:center;font:900 14px var(--mono)}.intro h1{font:900 48px/.86 var(--display);letter-spacing:-.075em;margin-top:62px}.intro h1 em{color:var(--signal);font-style:normal}.intro p{font-size:12px;line-height:1.6;color:var(--ink-dim);max-width:290px;margin-top:17px}.intro .manifest{border-top:1px solid var(--line);padding-top:12px;font:700 8px/1.7 var(--mono);color:var(--ink-faint)}.enter{height:50px;border:0;background:var(--paper);color:#111;border-radius:0;margin-top:13px;font:900 11px var(--mono);text-transform:uppercase;letter-spacing:.12em}
+/* request sheet */
+.request-sheet{position:absolute;left:10px;right:10px;top:62px;background:var(--panel-2);border:1px solid var(--line-strong);z-index:45;transform:translateY(-20px);opacity:0;pointer-events:none;transition:.2s}.request-sheet.open{transform:translateY(0);opacity:1;pointer-events:auto}.request-sheet-head{display:flex;justify-content:space-between;align-items:center;padding:11px 12px;border-bottom:1px solid var(--line)}.request-sheet-head h3{font:900 13px var(--display)}.request-item{display:grid;grid-template-columns:28px 1fr auto;gap:8px;align-items:center;padding:10px 12px;border-bottom:1px solid var(--line)}.request-item p{font-size:8px;color:var(--ink-faint);margin-top:2px}.request-item button{border:0;background:transparent;color:var(--ink-faint);font-size:15px}
+
+/* --- behavioral product layer --- */
+.commit-intent{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:11px 0}.commit-intent strong{display:block;font:900 14px var(--display);letter-spacing:-.03em;margin-top:4px}.commit-intent span{display:block;font-size:8px;color:var(--ink-faint);margin-top:3px}.commit-intent button,.review-strip button,.ghost-commit button,.review-actions button,.replay-card button{border:1px solid var(--line-strong);background:transparent;padding:8px 9px;font:800 7px var(--mono);letter-spacing:.1em;color:var(--ink)}
+.review-strip{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;border-left:3px solid var(--mint);background:var(--panel);padding:11px}.review-strip strong,.ghost-commit strong{display:block;font:900 13px var(--display);margin-top:4px}.review-strip span,.ghost-commit span{display:block;font-size:8px;color:var(--ink-faint);margin-top:4px}.ghost-commit{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;border:1px dashed var(--line-strong);padding:11px;background:#101311}
+.record-grid{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--line);background:var(--panel)}.record-grid>div{padding:10px 8px;border-right:1px solid var(--line)}.record-grid>div:last-child{border-right:0}.record-grid span,.profile-records span{font:700 6px var(--mono);color:var(--ink-faint);letter-spacing:.1em}.record-grid b{display:block;font:900 19px/.95 var(--display);margin-top:6px}.record-grid small,.profile-records small{font-size:7px;color:var(--ink-faint)}
+.review-card{border:1px solid var(--line);background:var(--panel);padding:12px}.review-big{display:flex;align-items:baseline;gap:8px;padding:13px 0;border-bottom:1px solid var(--line)}.review-big b{font:900 34px var(--display);letter-spacing:-.05em}.review-big span{font-size:8px;color:var(--ink-faint)}.review-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line);font-size:8px}.review-row span{color:var(--ink-faint)}.review-insight{font-size:9px;line-height:1.45;color:var(--ink-dim);padding:10px 0}.review-actions{display:grid;grid-template-columns:1fr 1fr;gap:5px}.replay-card{border-top:1px solid var(--line-strong);border-bottom:1px solid var(--line-strong);padding:13px 0}.replay-card h2{font:900 23px/.95 var(--display);letter-spacing:-.045em;margin:7px 0 11px}.replay-metrics{display:grid;grid-template-columns:auto 1fr auto 1fr auto 1fr;align-items:end;gap:5px;margin-bottom:11px}.replay-metrics b{font:900 18px var(--display)}.replay-metrics span{font:7px var(--mono);color:var(--ink-faint);text-transform:uppercase}
+.crew-summary{display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}.crew-summary>div{padding:10px 12px;border-right:1px solid var(--line)}.crew-summary>div:last-child{border-right:0}.crew-summary b{display:block;font:900 19px var(--display)}.crew-summary span{font:7px var(--mono);color:var(--ink-faint);text-transform:uppercase}.crew-segment{margin:11px 12px}.crew-body{padding:0 12px 100px}.crew-toolbar{display:grid;grid-template-columns:1fr 58px 108px;gap:5px;margin-bottom:7px}.crew-toolbar input{width:100%;height:36px;background:var(--panel);border:1px solid var(--line);padding:0 10px;font-size:9px}.crew-toolbar button{border:0;background:var(--signal);color:#150D08;font:900 8px var(--mono)}.create-circle-btn{background:var(--mint)!important;color:#101513!important}.crew-help{font-size:8px;line-height:1.45;color:var(--ink-faint);padding:9px 0 12px;border-bottom:1px solid var(--line);margin-bottom:10px}.circle{border:1px solid var(--line);background:var(--panel);padding:12px;margin-bottom:6px}.circle-top{display:flex;justify-content:space-between;align-items:baseline}.circle h3{font:900 14px var(--display)}.circle p{font-size:8px;color:var(--ink-faint);margin-top:4px}.circle .progress-track{height:4px;background:#242824;margin-top:10px}.circle .progress-track i{display:block;height:100%;background:var(--mint)}.circle-actions{display:flex;gap:5px;margin-top:9px}.circle-actions button{border:1px solid var(--line);background:transparent;padding:7px 8px;font:800 7px var(--mono);color:var(--ink)}.profile-records{display:grid;grid-template-columns:repeat(3,1fr);border-bottom:1px solid var(--line)}.profile-records>div{padding:11px 9px;border-right:1px solid var(--line)}.profile-records>div:last-child{border-right:0}.profile-records b{display:block;font:900 18px var(--display);margin-top:5px}
+.forecast-check{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:end;border-left:3px solid var(--signal);background:var(--panel);padding:11px}.forecast-check strong{display:block;font:900 13px var(--display);margin-top:4px}.forecast-check span{display:block;font-size:8px;color:var(--ink-faint);margin-top:3px}.forecast-check>b{font:900 23px var(--display);color:var(--mint)}.forecast-check small{font:700 6px var(--mono);color:var(--ink-faint);text-transform:uppercase}.friend-actions{grid-column:2 / -1;display:flex;gap:5px;margin-top:2px}.friend-actions button,.add-circle{border:1px solid var(--line);background:transparent;padding:7px 8px;font:800 7px var(--mono);color:var(--ink)}.add-circle{width:100%;margin-top:4px;padding:10px}
+.compare-btn{border:1px solid var(--signal);background:transparent;color:var(--signal);padding:7px 9px;font:800 7px var(--mono)}
+.crew-jump{display:grid;grid-template-columns:repeat(3,1fr);gap:0;margin:0 12px;border:1px solid var(--line);background:var(--panel)}
+.crew-jump-btn{padding:8px 4px;text-align:center;text-decoration:none;color:var(--ink-faint);font:800 7px var(--mono);letter-spacing:.08em;text-transform:uppercase;border:0;border-right:1px solid var(--line);background:transparent;cursor:pointer}.crew-jump-btn:last-child{border-right:0}.crew-jump-btn.active{color:var(--ink);background:#151817;box-shadow:inset 0 -2px 0 var(--signal)}
+.crew-search{display:grid;grid-template-columns:16px 1fr 24px;align-items:center;gap:6px;height:38px;border:1px solid var(--line-strong);background:var(--panel);padding:0 8px;margin-bottom:7px}.crew-search:focus-within{border-color:var(--signal)}.search-mark{font:700 17px var(--mono);color:var(--ink-faint);line-height:1;transform:translateY(-1px)}.crew-search input{width:100%;height:100%;border:0;outline:0;background:transparent;color:var(--ink);font:700 9px var(--mono)}.crew-search input::placeholder{color:var(--ink-faint)}.search-clear{width:22px;height:22px;border:0;background:transparent;color:var(--ink-faint);font:700 14px var(--mono);cursor:pointer}.crew-add-row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 10px;padding:0 1px}.crew-add-row span{font-size:7px;color:var(--ink-faint)}.crew-add-row button{border:0;background:transparent;color:var(--signal);padding:4px 0;font:900 7px var(--mono)}.search-empty{display:flex;flex-direction:column;align-items:center;gap:5px;padding:30px 10px 22px;text-align:center;color:var(--ink-faint);font-size:8px}.search-empty b{font:900 11px var(--display);color:var(--ink)}.search-empty button{margin-top:4px;border:1px solid var(--signal);background:transparent;color:var(--signal);padding:7px 9px;font:900 7px var(--mono)}.crew-panel-host{padding:0 12px 100px;min-height:0;overflow:auto;scrollbar-width:none}.crew-panel-host::-webkit-scrollbar{display:none}.crew-panel{display:none;padding-top:14px}.crew-panel.active{display:block}.crew-panel .crew-section-head{margin-bottom:9px}.crew-panel .friend-list,.crew-panel .request-list{padding-bottom:20px}.crew-section{padding-top:14px;margin-bottom:18px}.crew-section-head{display:flex;align-items:end;justify-content:space-between;margin-bottom:8px}.crew-section-head h3{font:900 16px var(--display)}.crew-section-head p{font-size:8px;color:var(--ink-faint);margin-top:2px}.section-action{border:0;background:var(--signal);color:#150D08;padding:8px 10px;font:900 7px var(--mono)}
+.compare-panel{position:absolute;left:12px;right:12px;top:58px;bottom:58px;background:var(--panel);border:1px solid var(--line-strong);z-index:60;transform:translateY(20px);opacity:0;pointer-events:none;transition:.22s;overflow:auto}.compare-panel.open{transform:none;opacity:1;pointer-events:auto}.compare-head{position:sticky;top:0;display:flex;justify-content:space-between;align-items:center;padding:12px;border-bottom:1px solid var(--line);background:rgba(18,21,20,.97);z-index:2}.compare-head h3{font:900 15px var(--display)}.compare-close{border:0;background:transparent;color:var(--ink-faint);font-size:18px}.compare-grid{display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid var(--line)}.compare-col{padding:14px 12px}.compare-col+ .compare-col{border-left:1px solid var(--line)}.compare-name{font:900 10px var(--mono);color:var(--ink-faint)}.compare-score{font:900 26px var(--display);margin-top:5px}.compare-label{font-size:7px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.08em}.compare-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line)}.compare-stat{background:var(--panel-2);padding:9px}.compare-stat b{display:block;font:900 14px var(--display)}.compare-stat span{font-size:7px;color:var(--ink-faint);text-transform:uppercase}.compare-note{margin:12px;padding:10px;border-left:2px solid var(--mint);background:var(--panel-2);font-size:8px;line-height:1.45;color:var(--ink-dim)}
+
+/* v3 product-depth additions */
+
+.day-modal,.challenge-modal{position:absolute;inset:0;background:rgba(5,6,6,.78);z-index:90;display:none;align-items:flex-end}.day-modal.open,.challenge-modal.open{display:flex}.day-card,.challenge-card{width:100%;background:var(--panel);border-top:1px solid var(--line-strong);padding:15px 15px 22px;max-height:82%;overflow:auto}.day-head,.challenge-head{display:flex;justify-content:space-between;align-items:flex-start}.day-head h2,.challenge-head h2{font:900 24px/.95 var(--display);letter-spacing:-.05em}.close-x{border:0;background:transparent;color:var(--ink-faint);font-size:20px}.day-total{font:900 48px/.85 var(--display);margin:15px 0 5px}.day-sub{font-size:8px;color:var(--ink-faint)}.day-timeline{margin-top:14px;border-top:1px solid var(--line)}.day-event{display:grid;grid-template-columns:60px 1fr auto;gap:8px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line);font-size:8px}.day-event time{font:700 7px var(--mono);color:var(--ink-faint)}.day-event strong{font:900 12px var(--display)}.day-event span{font-size:7px;color:var(--ink-faint)}.day-insight{margin-top:12px;border-left:2px solid var(--mint);background:var(--panel-2);padding:10px;font-size:8px;line-height:1.45;color:var(--ink-dim)}
+.comeback-strip{border:1px solid var(--signal);background:linear-gradient(90deg,#1B1210,#121514);padding:12px;display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center}.comeback-strip strong{display:block;font:900 16px var(--display);margin-top:4px}.comeback-strip span{font-size:8px;color:var(--ink-faint);display:block;margin-top:4px}.comeback-strip button{border:0;background:var(--signal);color:#160D09;padding:9px 10px;font:900 7px var(--mono)}
+.consistency{border-top:1px solid var(--line-strong);border-bottom:1px solid var(--line-strong);padding:12px 0}.consistency-grid{display:grid;grid-template-columns:72px 1fr;gap:10px;align-items:center}.consistency-score{font:900 38px/.85 var(--display)}.consistency-score small{font:700 7px var(--mono);display:block;color:var(--ink-faint);margin-top:5px}.consistency-bar{height:7px;background:#252925}.consistency-bar i{display:block;height:100%;background:var(--mint)}.consistency-note{font-size:8px;line-height:1.4;color:var(--ink-faint);margin-top:7px}
+.squad-field{border:1px solid var(--line);background:var(--panel);padding:12px;margin-top:9px;overflow:hidden}.squad-field-head{display:flex;justify-content:space-between;align-items:baseline}.squad-field-head b{font:900 13px var(--display)}.squad-field-head span{font:700 7px var(--mono);color:var(--ink-faint);text-transform:uppercase}.squad-grid-wrap{overflow:auto;scrollbar-width:none;margin-top:9px}.squad-grid-wrap::-webkit-scrollbar{display:none}.squad-grid{display:grid;grid-template-rows:repeat(7,9px);grid-auto-flow:column;grid-auto-columns:9px;gap:3px;min-width:max-content}.squad-cell{width:9px;height:9px;background:#171B18;border:1px solid rgba(255,255,255,.03)}.squad-cell.l1{background:#35483D}.squad-cell.l2{background:#526F60}.squad-cell.l3{background:#7EA68E}.squad-cell.l4{background:var(--mint)}.squad-legend{display:flex;justify-content:space-between;align-items:center;margin-top:7px;font:700 7px var(--mono);color:var(--ink-faint)}
+.squad-challenge{border-top:1px solid var(--line);margin-top:11px;padding-top:10px}.squad-challenge strong{display:block;font:900 15px var(--display);margin-top:4px}.squad-challenge p{font-size:8px;color:var(--ink-faint);margin-top:4px}.challenge-progress{height:5px;background:#252925;margin-top:8px}.challenge-progress i{display:block;height:100%;background:var(--signal)}
+.achievement-group{margin-top:14px}.achievement-group-head{display:flex;justify-content:space-between;align-items:baseline}.achievement-group-head b{font:900 11px var(--display)}.achievement-group-head span{font:700 7px var(--mono);color:var(--ink-faint)}
+</style>
+</head>
+<body>
+<div class="shell"><div class="phone">
+  <div class="status"><span>9:41</span><span>▮▮▮　100%</span></div>
+  <div class="app" id="app">
+    <section class="view active" id="view-intro">
+      <div class="intro">
+        <div>
+          <div class="intro-brand"><div class="intro-mark">&gt;_</div><div><div class="wordmark">repcommit</div><div class="kicker">a habit, measured</div></div></div>
+          <h1>Push.<br><em>See what sticks.</em></h1>
+          <p>Your push-ups become a living signal. repcommit estimates what you will likely do next, then gives your crew one reason to keep showing up.</p>
+        </div>
+        <div>
+          <div class="manifest">LOG FIRST. PREDICT SECOND. COMPARE LAST.<br>BUILT FOR PEOPLE WHO COUNT THE WORK.</div>
+          <button class="enter" onclick="show('view-home')">Enter repcommit ↗</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="view" id="view-home">
+      <div class="topbar"><div class="brand-lock"><div class="brand-mark"></div><div><small>repcommit / today</small><div class="title">jay, keep the line.</div></div></div><button class="icon-btn" onclick="openRequestPeek()">⌁<span class="dot"></span></button></div>
+      <div class="scroll"><div class="content">
+        <div class="today-head"><div><div class="kicker">21 Aug · Friday</div><h1>Today’s<br>signal</h1></div><p>One action moves the whole dashboard.</p></div>
+
+        <div class="daily-drop daily-primary">
+          <div class="drop-head"><span class="drop-tag" id="dropTagTop">Thought of the day</span><button class="drop-action" onclick="rerollDailyDrop()">New drop ↗</button></div>
+          <blockquote id="dropQuoteTop">Your best sessions are the ones you repeat.</blockquote>
+          <p id="dropBodyTop">A tiny dose of consistency beats a dramatic reset. Keep the next set small enough to start.</p>
+          <div class="drop-foot"><span id="dropSourceTop">Field note · 21 Aug</span><span id="dropTypeTop">FIELD NOTE</span></div>
+        </div>
+
+        <div class="commit-intent">
+          <div><div class="micro">today's commitment</div><strong id="commitIntentText">20 push-ups before 9 PM</strong><span id="commitIntentMeta">1 small promise · no streak pressure</span></div>
+          <button onclick="cycleCommitment()">CHANGE ↻</button>
+        </div>
+
+        <div class="comeback-strip" id="comebackStrip" hidden><div><div class="micro">comeback mode</div><strong>You're back.</strong><span>Your last commit was 4 days ago. Start with the smallest useful win.</span></div><button onclick="setCount(15);openLogger()">15 PUSH-UPS</button></div>
+
+        <div class="instrument">
+          <div class="instrument-left">
+            <div><div class="micro">push-ups today</div><div class="push-readout" id="todayValue">42<span>PUSH-UPS</span></div></div>
+            <div><div class="goal-line"><i id="todayProgress" style="width:70%"></i></div><div class="goal-meta"><span id="goalMetaLeft">18 LEFT</span><span id="goalMetaRight">70%</span></div></div>
+          </div>
+          <div class="instrument-side">
+            <div class="side-stat"><strong>12</strong><span>day streak</span></div>
+            <div class="rule"></div>
+            <div class="side-stat"><strong>21</strong><span>best streak</span></div>
+          </div>
+        </div>
+
+        <button class="push-main" onclick="openLogger()"><span>LOG A PUSH</span><span class="push-key">+ PUSH-UPS</span></button>
+
+        <div class="heatmap-shell"><div class="heatmap-head"><b>Commit field</b><span id="heatmapYearLabel">2026 · year view</span></div><div class="heatmap-wrap"><div class="heatmap-days"><span></span><span>Mon</span><span></span><span>Wed</span><span></span><span>Fri</span><span></span></div><div class="heatmap-scroll"><div class="heatmap-months" id="heatMonths"></div><div class="heatmap-grid" id="heatmap"></div></div></div><div class="heatmap-note"><span id="heatmapSummary">0 active days · 0 push-ups</span><div class="heat-legend"><span>LESS</span><i></i><i></i><i></i><i></i><i></i><span>MORE</span></div></div></div>
+
+        <div class="section-head"><h2>Forecast</h2><span>learned from 28 days</span></div>
+        <div class="forecast">
+          <div class="forecast-main"><div class="micro">probable finish</div><div class="big" id="forecastRange">52–64 push-ups</div><p>Recent push-up volume is up against your weekday baseline. <b id="forecastLikely">58 push-ups</b> is the most likely finish.</p><div class="forecast-bar" id="forecastMeter"></div></div>
+          <div class="forecast-side"><div><div class="micro">confidence</div><div class="confidence" id="confidence">78%</div><small>model fit</small></div><div><div class="micro">best window</div><div style="font:900 13px var(--display);margin-top:4px">9:15 PM</div></div></div>
+        </div>
+
+        <div class="section-head"><h2>Momentum</h2><span>last 7 days</span></div>
+        <div class="activity-strip"><div class="bars" id="bars"></div><div class="bar-meta"><span id="avgMeta">7d avg 52 push-ups</span><span style="color:var(--mint)"> +18% vs prior</span></div></div>
+
+        <div class="consistency"><div class="section-head"><h2>Consistency</h2><span id="consistencyLabel">4 / 7 days</span></div><div class="consistency-grid" style="margin-top:9px"><div class="consistency-score" id="consistencyScore">57%<small>this week</small></div><div><div class="consistency-bar"><i id="consistencyBar" style="width:57%"></i></div><div class="consistency-note">You do better when the target is small enough to start. Consistency beats one huge day.</div></div></div></div>
+
+        <div class="review-strip">
+          <div><div class="micro">weekly review</div><strong>5 / 7 days committed</strong><span>348 push-ups · +18% vs last week</span></div>
+          <button onclick="show('view-activity')">REVIEW ↗</button>
+        </div>
+
+        <div class="ghost-commit" id="ghostCommit">
+          <div><div class="micro">no pressure</div><strong>Need a smaller win?</strong><span>Start with 10 push-ups. A small commit still lights the square.</span></div>
+          <button onclick="setCount(10);openLogger()">10 PUSH-UPS</button>
+        </div>
+
+        <div class="section-head"><h2>Crew pulse</h2><span>4 pushing today</span></div>
+        <div class="pulse" id="pulse"></div>
+      </div></div>
+      <nav class="nav" id="nav-home"></nav>
+    </section>
+
+    <section class="view" id="view-activity">
+      <div class="page-title"><div class="kicker">History</div><h1>All signal.</h1><p>The raw trail behind the forecast.</p></div>
+      <div class="scroll"><div class="content"><div class="heatmap-shell"><div class="heatmap-head"><b>Commit field</b><span>every day has a cell</span></div><div class="heatmap-wrap"><div class="heatmap-days"><span></span><span>Mon</span><span></span><span>Wed</span><span></span><span>Fri</span><span></span></div><div class="heatmap-scroll"><div class="heatmap-months" id="heatMonths2"></div><div class="heatmap-grid" id="heatmap2"></div></div></div><div class="heatmap-note"><span>Past work stays bright. Future stays empty.</span><div class="heat-legend"><span>LESS</span><i></i><i></i><i></i><i></i><i></i><span>MORE</span></div></div></div><div class="activity-strip"><div class="section-head"><h2>Week in push-ups</h2><span>284 / 420</span></div><div class="bars" style="margin-top:10px" id="bars2"></div></div>
+        <div class="record-grid">
+          <div><span>BEST SET</span><b>72</b><small>push-ups</small></div>
+          <div><span>BEST DAY</span><b>184</b><small>push-ups</small></div>
+          <div><span>BEST WEEK</span><b>742</b><small>push-ups</small></div>
+          <div><span>LONGEST LINE</span><b>31</b><small>days</small></div>
+        </div>
+        <div class="review-card">
+          <div class="section-head"><h2>Weekly review</h2><span>08.21 · current</span></div>
+          <div class="review-big"><b>5 / 7</b><span>days committed</span></div>
+          <div class="review-row"><span>Volume</span><strong>348 push-ups</strong></div>
+          <div class="review-row"><span>Best day</span><strong>Thursday · 86</strong></div>
+          <div class="review-row"><span>Usual window</span><strong>8–10 PM</strong></div>
+          <div class="review-insight">You tend to do more when you log before 9 PM.</div>
+          <div class="review-actions"><button onclick="setCommitment('30 push-ups before 9 PM')">KEEP 350</button><button onclick="setCommitment('60 push-ups before 9 PM')">RAISE IT</button></div>
+        </div>
+        <div class="forecast-check"><div><div class="micro">prediction check</div><strong>Last forecast · 58 push-ups</strong><span>Actual · 64 push-ups</span></div><b>+6</b><small>above forecast</small></div>
+        <div class="replay-card"><div class="kicker">August / commit replay</div><h2>This is what showing up looked like.</h2><div class="replay-metrics"><b>1,842</b><span>push-ups</span><b>18</b><span>active days</span><b>9d</b><span>best line</span></div><button onclick="replayMonth()">PLAY AUGUST ↗</button></div>
+        <div class="history" id="history"></div></div></div>
+      <nav class="nav" id="nav-activity"></nav>
+    </section>
+
+    <section class="view" id="view-crew">
+      <div class="topbar"><div><div class="kicker">Social</div><div class="title">Your crew, clearly.</div></div><button class="icon-btn" onclick="openRequestPeek()">⌁<span class="dot"></span></button></div>
+      <div class="crew-summary"><div><b id="crewFriendCount">6</b><span>friends</span></div><div><b id="circleTabCount">2</b><span>squads</span></div><div><b id="crewRequestCount">3</b><span>requests</span></div></div>
+      <div class="crew-jump" role="tablist" aria-label="Crew sections">
+        <button type="button" class="crew-jump-btn active" data-crew="friends" onclick="switchCrewPanel('friends', event)">Friends</button>
+        <button type="button" class="crew-jump-btn" data-crew="squads" onclick="switchCrewPanel('squads', event)">Squads</button>
+        <button type="button" class="crew-jump-btn" data-crew="requests" onclick="switchCrewPanel('requests', event)">Requests</button>
+      </div>
+      <div class="crew-panel-host">
+        <section class="crew-panel active" id="crew-panel-friends">
+          <div class="crew-section-head"><div><h3>Friends</h3><p>People you already trust to keep showing up.</p></div></div>
+          <div class="crew-search" role="search">
+            <span class="search-mark" aria-hidden="true">⌕</span>
+            <input id="friendSearch" type="search" placeholder="Search friends" aria-label="Search friends by username" autocomplete="off" spellcheck="false" oninput="filterFriends()">
+            <button type="button" class="search-clear" id="friendSearchClear" aria-label="Clear friend search" onclick="clearFriendSearch(event)" hidden>×</button>
+          </div>
+          <div class="crew-add-row"><span>Add someone to your crew</span><button type="button" onclick="sendFriendRequest(event)">+ ADD FRIEND</button></div>
+          <div id="friendsPanel"></div>
+        </section>
+        <section class="crew-panel" id="crew-panel-squads">
+          <div class="crew-section-head"><div><h3>Squads</h3><p>Shared goals, shared contribution field.</p></div><button type="button" class="section-action" onclick="createSquad(event)">+ CREATE SQUAD</button></div>
+          <div id="squadsPanel"></div>
+        </section>
+        <section class="crew-panel" id="crew-panel-requests">
+          <div class="crew-section-head"><div><h3>Requests</h3><p>People asking to connect with you.</p></div><span class="kicker" id="reqCount">3</span></div>
+          <div id="requestsPanel"></div>
+        </section>
+      </div>
+      <div class="compare-panel" id="comparePanel"></div>
+      <nav class="nav" id="nav-crew"></nav>
+    </section>
+
+    <section class="view" id="view-profile">
+      <div class="page-title"><div class="kicker">Profile</div><h1>@jay_pushes</h1><p>Your record, patterns, and milestones</p></div>
+      <div class="scroll"><div>
+        <div class="profile-band"><div class="profile-avatar">J</div><div><h1>18,420</h1><p>push-ups recorded · your record, not a score</p></div></div>
+        <div class="stats"><div class="stat"><b>146</b><span>active days</span></div><div class="stat"><b>58</b><span>avg/day</span></div><div class="stat"><b>57%</b><span>consistency</span></div><div class="stat"><b>12d</b><span>current line</span></div></div>
+        <div class="profile-records">
+          <div><span>BEST SET</span><b>72</b><small>push-ups</small></div>
+          <div><span>BEST DAY</span><b>184</b><small>push-ups</small></div>
+          <div><span>BEST WEEK</span><b>742</b><small>push-ups</small></div>
+        </div>
+        <div class="profile-records">
+          <div><span>LONGEST LINE</span><b>31</b><small>days</small></div>
+          <div><span>BEST MONTH</span><b>24</b><small>active days</small></div>
+          <div><span>COMEBACK</span><b>3</b><small>days away</small></div>
+        </div>
+        <div class="achievements"><div class="section-head"><h2>Milestones</h2><span id="achCount">4 unlocked</span></div><div class="ach-grid" id="ach"></div></div><div class="achievements" style="padding-top:0"><div class="section-head"><h2>Next unlock</h2><span>closest</span></div><div style="margin-top:9px;border-top:1px solid var(--line);padding-top:11px"><div style="display:flex;justify-content:space-between;align-items:baseline"><b id="nextAchName" style="font:900 15px var(--display)">1000 PUSH-UP WEEK</b><span id="nextAchProgress" style="font:700 8px var(--mono);color:var(--ink-faint)">624 / 1000 push-ups</span></div><div class="xp" style="margin-top:8px"><i id="nextAchBar" style="width:62%"></i></div></div></div>
+        <section class="field-notes">
+          <div class="section-head"><h2>Field notes</h2><span>the rules of the record</span></div>
+          <div class="truth-panel">
+            <div class="truth-kicker">THE TRACKER DOESN’T JUDGE</div>
+            <h2>Be honest.<br>Or don’t.</h2>
+            <p>This is your record, not a referee. Log what you actually did, what you think you did, or leave the square empty. The only thing we promise is to show your history back to you.</p>
+            <div class="truth-mark">NO PENALTY · NO SHAME · JUST SIGNAL</div>
+          </div>
+          <div class="drops-board">
+            <div class="drops-board-head"><b>Today’s available drops</b><button onclick="cycleDailyRail()" id="railCycle">Rotate ↻</button></div>
+            <div class="daily-rail-items" id="dailyRailItems"></div>
+          </div>
+        </section>
+      </div></div>
+      <nav class="nav" id="nav-profile"></nav>
+    </section>
+
+    <div class="day-modal" id="dayModal"><div class="day-card"><div class="day-head"><div><div class="kicker" id="dayKicker">THU · AUG 21</div><h2 id="dayTitle">A day in the field.</h2></div><button class="close-x" onclick="closeDay()">×</button></div><div class="day-total" id="dayTotal">64</div><div class="day-sub">push-ups · 2 logged sets · +11 vs your usual day</div><div class="day-timeline" id="dayTimeline"></div><div class="day-insight" id="dayInsight">You usually do more when you start before 9 PM. This day was 14% above your recent average.</div></div></div>
+    <div class="challenge-modal" id="challengeModal"><div class="challenge-card"><div class="challenge-head"><div><div class="kicker">NEW SQUAD CHALLENGE</div><h2>Build the field together.</h2></div><button class="close-x" onclick="closeChallenge()">×</button></div><div style="margin-top:13px"><input id="challengeName" style="width:100%;height:38px;background:var(--panel-2);border:1px solid var(--line);padding:0 10px;font-size:9px" placeholder="Challenge name" value="1000 Before Sunday"><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:7px"><input id="challengeTarget" type="number" style="height:38px;background:var(--panel-2);border:1px solid var(--line);padding:0 10px;font-size:9px" value="1000" min="50"><input id="challengeDays" type="number" style="height:38px;background:var(--panel-2);border:1px solid var(--line);padding:0 10px;font-size:9px" value="7" min="1"></div><button class="push-main" style="margin-top:9px;width:100%" onclick="saveChallenge()"><span>START SQUAD CHALLENGE</span><span>↗</span></button></div></div></div>
+    <div class="request-sheet" id="requestPeek"><div class="request-sheet-head"><h3>Friend requests</h3><button onclick="closeRequestPeek()">×</button></div><div id="requestPeekBody"></div></div>
+    <div class="backdrop" id="backdrop" onclick="closeLogger(event)"></div>
+    <div class="sheet" id="sheet"><div class="micro">new commit / push-up set</div><h2 style="margin-top:6px">How many push-ups did you do?</h2><div class="sheet-sub">This push-up count feeds the forecast and today’s progress.</div><div class="counter"><button class="round" onclick="adjust(-5)">−</button><strong id="count">20</strong><button class="round" onclick="adjust(5)">+</button></div><div class="quick"><button onclick="setCount(10)">10</button><button onclick="setCount(20)">20</button><button onclick="setCount(30)">30</button><button onclick="setCount(50)">50</button></div><div class="sheet-actions"><button class="cancel" onclick="closeLogger()">Cancel</button><button class="save" onclick="saveLog()">Log push-ups</button></div></div>
+  </div>
+</div></div>
+<script>
+const state={today:42,target:60,pending:20,history:[62,48,70,35,55,52,42],commitment:'20 push-ups before 9 PM',friends:[
+ {n:'byte_pusher',s:14,v:61,on:true},{n:'sudo_flex',s:21,v:74,on:true},{n:'kernel_panic',s:2,v:33,on:false},{n:'ctrl_alt_flex',s:17,v:57,on:true},{n:'null_gains',s:6,v:48,on:false},{n:'stack_overflow',s:9,v:52,on:true}],requests:[
+ {n:'react_ranger',mut:'wants to join your crew',initial:'R'},{n:'loop_hero',mut:'sent 2h ago',initial:'L'},{n:'dev_flex',mut:'sent yesterday',initial:'D'}],squads:[
+ {name:'Morning Crew',members:5,target:250,progress:184,meta:'50 push-ups / day'},
+ {name:'1000 Before Sunday',members:4,target:4000,progress:2640,meta:'shared weekly goal'}],dailyIndex:0};
+const icons={home:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="m4 10 8-6 8 6v9H5v-9Z"/></svg>',activity:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 19V5M4 19h16"/><path d="m7 15 3-4 3 2 5-7"/></svg>',crew:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M3 20c.7-3.4 2.7-5 6-5s5.3 1.6 6 5M14 15c2.9.1 4.8 1.5 5.5 4"/></svg>',profile:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c.3-4 2.5-6 7-6s6.7 2 7 6"/></svg>',plus:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 5v14M5 12h14"/></svg>'};
+function navHtml(active){return `<button class="${active==='home'?'active':''}" onclick="show('view-home')">${icons.home}<span>Today</span></button><button class="${active==='activity'?'active':''}" onclick="show('view-activity')">${icons.activity}<span>Signal</span></button><button class="center" onclick="openLogger()">${icons.plus}<span>Push</span></button><button class="${active==='crew'?'active':''}" onclick="show('view-crew')">${icons.crew}<span>Crew</span></button><button class="${active==='profile'?'active':''}" onclick="show('view-profile')">${icons.profile}<span>Profile</span></button>`}
+function renderNav(){['home','activity','crew','profile'].forEach(v=>document.getElementById('nav-'+v).innerHTML=navHtml(v))}
+function show(id){closeLogger();closeRequestPeek();closeCompare();closeDay();closeChallenge();document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));document.getElementById(id).classList.add('active');renderNav();if(id==='view-crew'){renderCrew();switchCrewPanel('friends');}}
+function switchCrewPanel(panel,event){if(event){event.preventDefault();event.stopPropagation();}closeLogger();closeRequestPeek();closeCompare();document.querySelectorAll('.crew-jump-btn').forEach(b=>b.classList.toggle('active',b.dataset.crew===panel));document.querySelectorAll('.crew-panel').forEach(p=>p.classList.toggle('active',p.id==='crew-panel-'+panel));}
+function calculateForecast(){const vals=state.history.slice();const avg=vals.reduce((a,b)=>a+b,0)/vals.length;const recent=vals.slice(-3).reduce((a,b)=>a+b,0)/3;const weighted=recent*.62+avg*.38;const low=Math.round(Math.max(30,weighted*.87));const high=Math.round(weighted*1.12);const likely=Math.round((low+high)/2);const variance=Math.max(5,Math.round((high-low)/2));const confidence=Math.max(62,Math.min(91,Math.round(86-variance*.6)));return{low,high,likely,confidence}}
+function renderForecast(){const f=calculateForecast();document.getElementById('forecastRange').textContent=`${f.low}–${f.high} push-ups`;document.getElementById('forecastLikely').textContent=`${f.likely} push-ups`;document.getElementById('confidence').textContent=`${f.confidence}%`;document.getElementById('forecastMeter').innerHTML=Array.from({length:8},(_,i)=>`<i class="${i<Math.round(f.likely/70*8)?'on':''}"></i>`).join('')}
+function renderBars(id){const el=document.getElementById(id);const max=Math.max(...state.history,75);el.innerHTML=state.history.map((v,i)=>`<div class="b ${i===6?'today':''}"><div class="fill" style="height:${Math.max(12,Math.round(v/max*100))}%"></div><label>${['M','T','W','T','F','S','F'][i]}</label></div>`).join('')}
+function renderPulse(){document.getElementById('pulse').innerHTML=state.friends.slice(0,3).map(f=>`<div class="pulse-cell"><div class="pulse-top"><div class="avatar-mini">${f.n[0].toUpperCase()}</div><span class="kicker" style="font-size:6px">${f.on?'LIVE':'OFF'}</span></div><div class="pulse-num" style="margin-top:10px">${f.v}</div><div class="pulse-name">@${f.n}</div></div>`).join('')}
+
+// GitHub-like contribution calendar: 53 week columns x 7 rows. Past dates have values, today is outlined, every future date exists and stays empty.
+function seededValue(dayIndex){let seed=(dayIndex*1664525+1013904223)%4294967296;let r=(seed>>>0)/4294967296;if(r<.14)return 0;let wave=(Math.sin(dayIndex*.31)+1)/2;let base=10+r*48+wave*30;if(dayIndex%11===0)base+=35;return Math.round(base)}
+function heatLevel(v,max){if(!v)return '';const x=v/max;if(x<.25)return'l1';if(x<.5)return'l2';if(x<.75)return'l3';return'l4'}
+function renderHeat(id,monthsId){const el=document.getElementById(id),months=document.getElementById(monthsId);if(!el||!months)return;const now=new Date();const year=now.getFullYear();const jan=new Date(year,0,1);const dec=new Date(year,11,31);const start=new Date(jan);start.setDate(jan.getDate()-jan.getDay());const end=new Date(dec);end.setDate(dec.getDate()+(6-dec.getDay()));const totalDays=Math.round((end-start)/86400000)+1;const actual=[];let cursor=new Date(start);for(let i=0;i<totalDays;i++){const d=new Date(cursor);d.setDate(start.getDate()+i);const future=d>now;let value=0;if(!future){const diff=Math.round((d-jan)/86400000);value=Math.max(0,seededValue(diff));if(d.toDateString()===now.toDateString())value=state.today;}actual.push({d,value,future})}const max=Math.max(1,...actual.filter(x=>!x.future).map(x=>x.value));el.innerHTML=actual.map(x=>{const cls=x.future?'future':heatLevel(x.value,max);const today=x.d.toDateString()===now.toDateString()?' today':'';const iso=x.d.toISOString().slice(0,10);const label=x.future?`${iso} · future`: `${iso} · ${x.value} push-ups`;return `<button type="button" class="heat-cell ${cls}${today}" title="${label}" onclick="openDay('${iso}',${x.value},${x.future})"></button>`}).join('');
+  const monthStarts=[];for(let m=0;m<12;m++){const md=new Date(year,m,1);const col=Math.floor((Math.round((md-start)/86400000))/7);monthStarts.push({m,col})}months.innerHTML=monthStarts.map(x=>`<span style="left:${x.col*13}px">${['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'][x.m]}</span>`).join('');
+  const done=actual.filter(x=>!x.future&&x.value>0);const total=actual.reduce((a,x)=>a+x.value,0);if(id==='heatmap'){document.getElementById('heatmapSummary').textContent=`${done.length} active days · ${total.toLocaleString()} push-ups`}
+}
+
+const dailyDrops=[
+ {tag:'Thought of the day',quote:'The habit gets stronger before the muscle does.',body:'Do not negotiate with the whole workout. Negotiate with the first five push-ups.',type:'FIELD NOTE'},
+ {tag:'Micro challenge',quote:'Make today the day you leave a clean square.',body:'Log any real set before midnight. Small counts still count.',type:'TODAY ONLY'},
+ {tag:'Signal',quote:'Your recent average is a floor, not a ceiling.',body:'A little more volume is available today, but consistency still wins.',type:'READ THE SIGNAL'},
+ {tag:'Crew cue',quote:'Someone in your crew is already moving.',body:'Open Crew, find the live badge, and race them to your next set.',type:'SOCIAL PUSH'},
+ {tag:'Recovery note',quote:'Progress is not only made by adding more.',body:'If the last few days were heavy, protect tomorrow by keeping today controlled.',type:'PACE YOURSELF'},
+ {tag:'Daily question',quote:'What would make tonight feel complete?',body:'Pick one measurable answer, then log it before the day closes.',type:'ONE QUESTION'},
+ {tag:'Commit prompt',quote:'Leave evidence that you were here.',body:'The calendar remembers every square. Give today a reason to light up.',type:'MAKE THE MARK'}
+];
+function renderDailyDrop(){const d=dailyDrops[state.dailyIndex%dailyDrops.length];const dateLabel=new Date().toLocaleDateString('en-GB',{day:'2-digit',month:'short'});['dropTag','dropTagTop'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=d.tag});['dropQuote','dropQuoteTop'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=d.quote});['dropBody','dropBodyTop'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=d.body});['dropType','dropTypeTop'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=d.type});['dropSource','dropSourceTop'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=`Field note · ${dateLabel}`});renderDailyRail()}
+function rerollDailyDrop(){state.dailyIndex++;renderDailyDrop()}
+function cycleDailyRail(){state.dailyIndex++;renderDailyDrop()}
+function renderDailyRail(){const el=document.getElementById('dailyRailItems');if(!el)return;const start=state.dailyIndex%dailyDrops.length;el.innerHTML=[0,1,2,3].map(i=>dailyDrops[(start+i)%dailyDrops.length]).map(d=>`<span>${d.tag}</span>`).join('')}
+function renderHistory(){const rows=[['21','AUG','Today','Push set · 9:41 AM',42],['20','AUG','Yesterday','Push set · 9:22 PM',52],['19','AUG','Tuesday','Push set · 8:47 PM',55],['18','AUG','Monday','Push set · 7:51 PM',35],['17','AUG','Sunday','Push set · 10:14 PM',70],['16','AUG','Saturday','Push set · 9:08 PM',48],['15','AUG','Friday','Push set · 8:32 PM',62]];document.getElementById('history').innerHTML=rows.map(r=>{const iso=`2026-${{'JAN':'01','FEB':'02','MAR':'03','APR':'04','MAY':'05','JUN':'06','JUL':'07','AUG':'08','SEP':'09','OCT':'10','NOV':'11','DEC':'12'}[r[1]]}-${r[0].padStart(2,'0')}`;return `<button class="log" type="button" onclick="openDay('${iso}',${r[4]},false)"><div class="date"><b>${r[0]}</b>${r[1]}</div><div><h3>${r[2]}</h3><p>${r[3]}</p></div><strong>+${r[4]}</strong></button>`}).join('')}
+function renderFriendCount(){const fc=document.getElementById('crewFriendCount');if(fc)fc.textContent=state.friends.length;const sc=document.getElementById('circleTabCount');if(sc)sc.textContent=state.squads.length;const rc=document.getElementById('crewRequestCount');if(rc)rc.textContent=state.requests.length;const rs=document.getElementById('reqCount');if(rs)rs.textContent=state.requests.length;renderCrew()}
+function renderCrew(){
+ const fp=document.getElementById('friendsPanel'), sp=document.getElementById('squadsPanel'), rp=document.getElementById('requestsPanel');
+ const query=(document.getElementById('friendSearch')?.value||'').trim().toLowerCase().replace(/^@/,'');
+ const visibleFriends=state.friends.map((f,i)=>({f,i})).filter(({f})=>!query||f.n.toLowerCase().includes(query));
+ if(fp)fp.innerHTML=`<div class="friend-list">${visibleFriends.map(({f,i})=>`<div class="friend"><div class="avatar">${f.n[0].toUpperCase()}</div><div><h3>@${f.n}</h3><p>${f.on?'pushing today':'last active yesterday'} · ${f.s} day line</p></div><strong>${f.v} push-ups</strong><div class="friend-actions"><button class="compare-btn" onclick="event.preventDefault();event.stopPropagation();compareFriend(${i})">COMPARE</button><button onclick="event.preventDefault();event.stopPropagation();nudgeFriend(${i})">NUDGE</button><button onclick="event.preventDefault();event.stopPropagation();removeFriend(${i})">REMOVE</button></div></div>`).join('') || (query ? `<div class="search-empty"><b>No friend found</b><span>Nothing matches “@${query}”.</span><button type="button" onclick="sendFriendRequest(event, '${query.replace(/'/g,"\'")}')">+ ADD @${query}</button></div>` : '<div style="padding:22px 0;font-size:9px;color:var(--ink-faint)">No friends yet. Add someone to your crew.</div>')}</div>`;
+ if(sp)sp.innerHTML=state.squads.map((c,i)=>`<div class="circle"><div class="circle-top"><div><h3>${c.name}</h3><p>${c.members} members · ${c.meta}</p></div><strong>${c.progress.toLocaleString()} / ${c.target.toLocaleString()}</strong></div><div class="progress-track"><i style="width:${Math.min(100,c.progress/c.target*100)}%"></i></div><div class="circle-actions"><button onclick="alert('Invite link copied for '+${JSON.stringify(c.name)})">INVITE</button><button onclick="openSquadChallenge(event,${i})">CHALLENGE</button></div><div class="squad-field"><div class="squad-field-head"><b>Squad field</b><span>${c.members} members · 8 weeks</span></div><div class="squad-grid-wrap"><div class="squad-grid" id="squadGrid${i}"></div></div><div class="squad-legend"><span>0 members</span><span>FULL SQUAD</span></div><div class="squad-challenge"><div class="kicker">CURRENT MISSION</div><strong>${c.meta}</strong><p>${c.progress} of ${c.target} push-ups committed by the squad.</p><div class="challenge-progress"><i style="width:${Math.min(100,c.progress/c.target*100)}%"></i></div></div></div></div>`).join('')||'<div style="padding:12px 0;font-size:9px;color:var(--ink-faint)">No squads yet. Create one for a shared goal.</div>';state.squads.forEach((_,i)=>renderSquadField(i));
+ if(rp)rp.innerHTML=`<div class="request-list">${state.requests.map((r,i)=>`<div class="request"><div class="avatar">${r.initial}</div><div><h3>@${r.n}</h3><p>${r.mut}</p></div><div class="req-actions"><button class="accept" onclick="event.preventDefault();event.stopPropagation();acceptReq(${i})">Accept</button><button class="decline" onclick="event.preventDefault();event.stopPropagation();declineReq(${i})">×</button></div></div>`).join('')||'<div style="padding:16px 0;font-size:9px;color:var(--ink-faint)">No pending requests. Your inbox is clear.</div>'}</div>`;
+ filterFriendsUI();
+}
+function filterFriends(){renderCrew();}
+function filterFriendsUI(){const input=document.getElementById('friendSearch');const clear=document.getElementById('friendSearchClear');if(input&&clear)clear.hidden=!input.value;}
+function clearFriendSearch(e){if(e){e.preventDefault();e.stopPropagation()}const input=document.getElementById('friendSearch');if(input){input.value='';input.focus();}renderCrew();}
+function acceptReq(i){const r=state.requests.splice(i,1)[0];state.friends.unshift({n:r.n,s:1,v:0,on:true});renderFriendCount();renderPulse();updatePeek()}
+function declineReq(i){state.requests.splice(i,1);renderFriendCount();updatePeek()}
+function sendFriendRequest(e, presetName){if(e){e.preventDefault();e.stopPropagation()}const input=document.getElementById('friendSearch');let name=(presetName||'').trim().replace(/^@/,'');if(!name && input)name=(input.value||'').trim().replace(/^@/,'');if(!name){name=(prompt('Username to add')||'').trim().replace(/^@/,'')}if(!name)return;alert(`Friend request sent to @${name}`);if(input){input.value='';input.focus();}filterFriendsUI();renderCrew()}
+function nudgeFriend(i){alert(`Nudge sent to @${state.friends[i].n}`)}
+function removeFriend(i){const f=state.friends.splice(i,1)[0];renderFriendCount();renderPulse();alert(`@${f.n} removed from your friends.`)}
+function createSquad(e){if(e){e.preventDefault();e.stopPropagation()}const name=prompt('Squad name');if(!name)return;state.squads.push({name:name.trim(),members:1,target:500,progress:0,meta:'500 push-ups starter goal'});renderFriendCount()}
+function compareFriend(i){const f=state.friends[i];const you={name:'YOU',score:state.today,line:12,best:72,days:146,avg:Math.round(state.history.reduce((a,b)=>a+b,0)/state.history.length)};const other={name:'@'+f.n,score:f.v,line:f.s,best:Math.max(20,f.v+12),days:Math.max(1,Math.round(f.s*5.2)),avg:f.v};const lead=you.score>other.score?'You are ahead today.':you.score<other.score?`${other.name} is ahead today.`:'You are even today.';document.getElementById('comparePanel').innerHTML=`<div class="compare-head"><h3>Compare with ${other.name}</h3><button class="compare-close" onclick="closeCompare()">×</button></div><div class="compare-grid"><div class="compare-col"><div class="compare-name">${you.name}</div><div class="compare-score">${you.score}</div><div class="compare-label">push-ups today</div></div><div class="compare-col"><div class="compare-name">${other.name}</div><div class="compare-score">${other.score}</div><div class="compare-label">push-ups today</div></div></div><div class="compare-row"><div class="compare-stat"><b>${you.line}d</b><span>current line</span></div><div class="compare-stat"><b>${other.line}d</b><span>current line</span></div><div class="compare-stat"><b>${you.best}</b><span>best set</span></div><div class="compare-stat"><b>${other.best}</b><span>best set</span></div><div class="compare-stat"><b>${you.days}</b><span>active days</span></div><div class="compare-stat"><b>${other.days}</b><span>active days</span></div></div><div class="compare-note">${lead} Compare volume here, then tap into the Squad if you want to turn the rivalry into a shared goal.</div>`;document.getElementById('comparePanel').classList.add('open')}
+function closeCompare(){document.getElementById('comparePanel').classList.remove('open')}
+function openRequestPeek(){updatePeek();document.getElementById('requestPeek').classList.add('open')}
+function closeRequestPeek(){document.getElementById('requestPeek').classList.remove('open')}
+function updatePeek(){document.getElementById('requestPeekBody').innerHTML=state.requests.slice(0,3).map((r,i)=>`<div class="request-item"><div class="avatar">${r.initial}</div><div><b style="font-size:9px">@${r.n}</b><p>${r.mut}</p></div><button onclick="event.preventDefault();event.stopPropagation();acceptReq(${i})">✓</button></div>`).join('')||'<div style="padding:14px;font-size:9px;color:var(--ink-faint)">No pending requests.</div>'}
+function setCommitment(text){state.commitment=text;const el=document.getElementById('commitIntentText');if(el)el.textContent=text}
+function cycleCommitment(){const options=['10 push-ups before 9 PM','20 push-ups before 9 PM','30 push-ups before 9 PM','60 push-ups before sleep'];const i=options.indexOf(state.commitment);setCommitment(options[(i+1)%options.length])}
+function replayMonth(){let i=0;const cells=[...document.querySelectorAll('#heatmap .heat-cell')];const timer=setInterval(()=>{if(i>=cells.length){clearInterval(timer);return}cells[i].classList.add('today');setTimeout(()=>cells[i].classList.remove('today'),90);i++},28)}
+function openRequestPeek(){updatePeek();document.getElementById('requestPeek').classList.add('open')}
+function closeRequestPeek(){document.getElementById('requestPeek').classList.remove('open')}
+function updatePeek(){document.getElementById('requestPeekBody').innerHTML=state.requests.slice(0,3).map((r,i)=>`<div class="request-item"><div class="avatar">${r.initial}</div><div><b style="font-size:9px">@${r.n}</b><p>${r.mut}</p></div><button onclick="event.preventDefault();event.stopPropagation();acceptReq(${i})">✓</button></div>`).join('')||'<div style="padding:14px;font-size:9px;color:var(--ink-faint)">No pending requests.</div>'}
+function openLogger(){document.getElementById('count').textContent=state.pending;document.getElementById('backdrop').classList.add('open');document.getElementById('sheet').classList.add('open')}
+function closeLogger(e){if(e&&e.target.id!=='backdrop')return;document.getElementById('backdrop').classList.remove('open');document.getElementById('sheet').classList.remove('open')}
+function adjust(n){state.pending=Math.max(5,state.pending+n);document.getElementById('count').textContent=state.pending}
+function setCount(n){state.pending=n;document.getElementById('count').textContent=n}
+function saveLog(){const amount=state.pending;state.today+=amount;state.history[state.history.length-1]=state.today;state.lastCommitAt=new Date();const p=Math.min(100,state.today/state.target*100);document.getElementById('todayValue').innerHTML=`${state.today}<span>PUSH-UPS</span>`;document.getElementById('todayProgress').style.width=p+'%';document.getElementById('goalMetaLeft').textContent=state.today>=state.target?'GOAL HIT':`${Math.max(0,state.target-state.today)} LEFT`;document.getElementById('goalMetaRight').textContent=Math.round(p)+'%';state.pending=20;closeLogger();renderForecast();renderBars('bars');renderBars('bars2');renderHeat('heatmap','heatMonths');renderHeat('heatmap2','heatMonths2');document.getElementById('avgMeta').textContent=`7d avg ${Math.round(state.history.reduce((a,b)=>a+b,0)/state.history.length)} push-ups`;renderPulse();renderHistory();renderConsistency();if(state.today>=10){const g=document.getElementById('ghostCommit');if(g)g.style.display='none'}const c=document.getElementById('comebackStrip');if(c)c.hidden=true;if(state.squads[0]){state.squads[0].progress+=amount;renderCrew()}}
+function renderConsistency(){const active=state.history.slice(-7).filter(v=>v>0).length;const pct=Math.round(active/7*100);const a=document.getElementById('consistencyScore');const b=document.getElementById('consistencyBar');const l=document.getElementById('consistencyLabel');if(a)a.innerHTML=`${pct}%<small>this week</small>`;if(b)b.style.width=pct+'%';if(l)l.textContent=`${active} / 7 days`}
+function openDay(iso,value,future){if(future)return;const d=new Date(iso+'T12:00:00');document.getElementById('dayKicker').textContent=d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}).toUpperCase();document.getElementById('dayTitle').textContent=value?`A ${value}-push-up day.`:'An empty square.';document.getElementById('dayTotal').textContent=value;const times=value?[['08:10 PM',Math.max(5,Math.round(value*.38))],['08:31 PM',Math.max(5,value-Math.max(5,Math.round(value*.38)))]]:[];document.getElementById('dayTimeline').innerHTML=times.map(x=>`<div class="day-event"><time>${x[0]}</time><div><strong>${x[1]} push-ups</strong><span>push-up set</span></div><span>logged</span></div>`).join('')||'<div style="padding:12px 0;font-size:8px;color:var(--ink-faint)">No push-ups logged on this day.</div>';document.getElementById('dayInsight').textContent=value?`You usually do more when you start before 9 PM. This day was ${Math.max(3,Math.round((value/52-1)*100))}% above your recent average.`:'An empty square is still part of the record. There is nothing to hide.';document.getElementById('dayModal').classList.add('open')}
+function closeDay(){document.getElementById('dayModal').classList.remove('open')}
+function renderSquadField(i){const el=document.getElementById('squadGrid'+i);if(!el)return;const c=state.squads[i];const total=56;let html='';for(let d=0;d<total;d++){const members=(d*7+i*3)% (c.members+1);const cls=members===0?'':members<=1?'l1':members<=Math.ceil(c.members*.5)?'l2':members<c.members?'l3':'l4';html+=`<i class="squad-cell ${cls}"></i>`}el.innerHTML=html}
+function openSquadChallenge(e,i){if(e){e.preventDefault();e.stopPropagation()}document.getElementById('challengeName').value=state.squads[i]?.name+' / Next mission' || 'Squad mission';document.getElementById('challengeTarget').value=1000;document.getElementById('challengeDays').value=7;document.getElementById('challengeModal').dataset.squad=i;document.getElementById('challengeModal').classList.add('open')}
+function closeChallenge(){document.getElementById('challengeModal').classList.remove('open')}
+function saveChallenge(){const i=Number(document.getElementById('challengeModal').dataset.squad||0);const target=Math.max(50,Number(document.getElementById('challengeTarget').value)||1000);const name=(document.getElementById('challengeName').value||'Squad challenge').trim();if(state.squads[i]){state.squads[i].target=target;state.squads[i].meta=name+' · mission';state.squads[i].progress=Math.min(state.squads[i].progress,target)}closeChallenge();renderCrew()}
+function maybeShowComeback(){const c=document.getElementById('comebackStrip');if(c)c.hidden=false}
+
+
+const achievements=[
+ ['01','First push',true,'PERSONAL'],['07','7-day line',true,'CONSISTENCY'],['100','Century club',true,'PERSONAL'],['7/7','Perfect week',true,'CONSISTENCY'],
+ ['14','Fortnight',false,'CONSISTENCY'],['250','250 in one day',false,'PERSONAL'],['30d','30-day line',false,'CONSISTENCY'],['50','50 active days',false,'CONSISTENCY'],
+ ['500','500 week',false,'PERSONAL'],['1k','1000 week',false,'PERSONAL'],['5k','5000 total',false,'PERSONAL'],['10k','10k total',false,'PERSONAL'],
+ ['6AM','Dawn set',false,'PERSONAL'],['PM','Night shift',false,'PERSONAL'],['DUO','Crew carry',false,'SOCIAL'],['365','Year in motion',false,'CONSISTENCY'],
+ ['PLAN','Keep a promise',false,'COMMITMENT'],['CALL','Beat the forecast',false,'FORECAST'],['NUDGE','First nudge',false,'SOCIAL'],['SQUAD','Squad founder',false,'SQUAD'],
+ ['CREW5','Crew of five',false,'SOCIAL'],['REVIEW','First weekly review',false,'REFLECTION'],['BACK','Comeback commit',false,'COMEBACK'],['52W','Full field',false,'CONSISTENCY'],
+ ['VS','Compare',false,'SOCIAL'],['FIELD','Squad field',false,'SQUAD'],['MISSION','Mission complete',false,'SQUAD'],['REPLAY','Monthly replay',false,'REFLECTION']
+];
+document.getElementById('ach').innerHTML=achievements.map(a=>`<div class="ach ${a[2]?'unlocked':'locked'}"><b>${a[0]}</b><span>${a[1]}</span></div>`).join('');document.getElementById('achCount').textContent=`${achievements.filter(a=>a[2]).length} unlocked · ${achievements.length} total`;
+renderNav();renderForecast();renderBars('bars');renderBars('bars2');renderHeat('heatmap','heatMonths');renderHeat('heatmap2','heatMonths2');renderPulse();renderHistory();renderDailyDrop();renderFriendCount();renderCrew();renderConsistency();setCommitment(state.commitment);maybeShowComeback();
+</script>
+</body>
+</html>

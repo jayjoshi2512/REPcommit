@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "318309270119",
+    "project_id": "repcommit",
+    "storage_bucket": "repcommit.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:318309270119:android:46d0a0c25590b893eacac2",
+        "android_client_info": {
+          "package_name": "com.repcommit.repcommit"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "318309270119-v92e5ep0v0iedq5dvi1c7l9lgkvla476.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAXStHsNuTZJi6IC42MrKK6wTLcF0ZDFS4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "318309270119-v92e5ep0v0iedq5dvi1c7l9lgkvla476.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
