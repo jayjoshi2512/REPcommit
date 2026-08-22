@@ -282,7 +282,7 @@ class FirestoreService {
     await _db.collection('friendships').doc(friendshipId).delete();
   }
 
-  /// Stream incoming friend requests.
+  /// Stream incoming friend requests with populated user profiles.
   Stream<List<Map<String, dynamic>>> incomingRequestsStream() {
     final uid = _uid;
     if (uid == null) return const Stream.empty();
@@ -292,38 +292,128 @@ class FirestoreService {
         .where('toUid', isEqualTo: uid)
         .where('status', isEqualTo: 'pending')
         .snapshots()
-        .map((snap) => snap.docs.map((d) => {'id': d.id, ...d.data()}).toList());
+        .asyncMap((snap) async {
+      final list = <Map<String, dynamic>>[];
+      for (final d in snap.docs) {
+        final data = d.data();
+        final fromUid = data['fromUid'] as String?;
+        Map<String, dynamic>? senderProfile;
+        if (fromUid != null && fromUid.isNotEmpty) {
+          final senderDoc = await _db.collection('users').doc(fromUid).get();
+          senderProfile = senderDoc.data();
+        }
+        list.add({
+          'id': d.id,
+          ...data,
+          'fromUid': fromUid ?? '',
+          'username': senderProfile?['username'] as String? ?? '',
+          'displayName': senderProfile?['displayName'] as String? ?? '',
+          'photoUrl': senderProfile?['photoUrl'] as String? ?? '',
+        });
+      }
+      return list;
+    });
   }
 
-  /// Stream accepted friends.
+  /// Stream accepted friends with populated user profiles and today's stats.
   Stream<List<Map<String, dynamic>>> friendsStream() {
     final uid = _uid;
     if (uid == null) return const Stream.empty();
 
-    // Friends where I'm either fromUid or toUid with status accepted.
+    final now = DateTime.now();
+    final todayKey = '${now.year.toString().padLeft(4, '0')}-'
+        '${now.month.toString().padLeft(2, '0')}-'
+        '${now.day.toString().padLeft(2, '0')}';
+
     return _db
         .collection('friendships')
         .where('status', isEqualTo: 'accepted')
         .snapshots()
-        .map((snap) {
-      return snap.docs
-          .map((d) => {'id': d.id, ...d.data()})
-          .where((f) => f['fromUid'] == uid || f['toUid'] == uid)
-          .toList();
+        .asyncMap((snap) async {
+      final list = <Map<String, dynamic>>[];
+      final matchedDocs = snap.docs.where((d) {
+        final data = d.data();
+        return data['fromUid'] == uid || data['toUid'] == uid;
+      });
+
+      for (final d in matchedDocs) {
+        final data = d.data();
+        final friendUid = (data['fromUid'] == uid ? data['toUid'] : data['fromUid']) as String?;
+        if (friendUid == null || friendUid.isEmpty) continue;
+
+        final userDoc = await _db.collection('users').doc(friendUid).get();
+        final userData = userDoc.data() ?? {};
+
+        // Fetch friend's today stats
+        final todayStatsDoc = await _db
+            .collection('users')
+            .doc(friendUid)
+            .collection('dailyStats')
+            .doc(todayKey)
+            .get();
+        final todayPushUps = (todayStatsDoc.data()?['totalPushUps'] as int?) ?? 0;
+
+        final lastActive = userData['lastActiveAt'] as Timestamp?;
+        final isOnline = lastActive != null &&
+            now.difference(lastActive.toDate()).inMinutes < 15;
+
+        list.add({
+          'id': d.id,
+          'uid': friendUid,
+          ...data,
+          'username': userData['username'] as String? ?? '',
+          'displayName': userData['displayName'] as String? ?? '',
+          'photoUrl': userData['photoUrl'] as String? ?? '',
+          'isOnline': isOnline,
+          'todayPushUps': todayPushUps,
+          'streak': (userData['currentStreak'] as int?) ?? (todayPushUps > 0 ? 1 : 0),
+        });
+      }
+      return list;
     });
   }
 
-  /// Look up a user by username.
-  Future<Map<String, dynamic>?> findUserByUsername(String username) async {
-    final usernameDoc = await _db.collection('usernames').doc(username.toLowerCase()).get();
-    if (!usernameDoc.exists) return null;
+  /// Look up a user by username or email address.
+  Future<Map<String, dynamic>?> findUserByUsernameOrEmail(String query) async {
+    final clean = query.trim().toLowerCase().replaceFirst('@', '');
+    if (clean.isEmpty) return null;
 
-    final targetUid = usernameDoc.data()?['uid'] as String?;
-    if (targetUid == null) return null;
+    // 1. Search by username mapping first
+    final usernameDoc = await _db.collection('usernames').doc(clean).get();
+    if (usernameDoc.exists) {
+      final targetUid = usernameDoc.data()?['uid'] as String?;
+      if (targetUid != null) {
+        final userDoc = await _db.collection('users').doc(targetUid).get();
+        if (userDoc.exists) return userDoc.data();
+      }
+    }
 
-    final userDoc = await _db.collection('users').doc(targetUid).get();
-    return userDoc.data();
+    // 2. Search by email address in users collection
+    final emailSnap = await _db
+        .collection('users')
+        .where('email', isEqualTo: query.trim().toLowerCase())
+        .limit(1)
+        .get();
+    if (emailSnap.docs.isNotEmpty) {
+      return emailSnap.docs.first.data();
+    }
+
+    // 3. Search by username directly in users collection
+    final usernameSnap = await _db
+        .collection('users')
+        .where('username', isEqualTo: clean)
+        .limit(1)
+        .get();
+    if (usernameSnap.docs.isNotEmpty) {
+      return usernameSnap.docs.first.data();
+    }
+
+    return null;
   }
+
+  /// Backward-compatible alias for username lookup.
+  Future<Map<String, dynamic>?> findUserByUsername(String username) =>
+      findUserByUsernameOrEmail(username);
 
   // ── Squads ────────────────────────────────────────────────────
 

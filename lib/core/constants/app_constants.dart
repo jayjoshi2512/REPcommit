@@ -36,11 +36,6 @@ abstract final class AppConstants {
   // ── Quick values for logger ─────────────────────────────────────
   static const List<int> quickValues = [10, 20, 30, 50];
 
-  // ── Forecast parameters ─────────────────────────────────────────
-  static const int forecastWindowDays = 28;
-  static const double forecastRecentWeight = 0.62;
-  static const double forecastBaseWeight = 0.38;
-
   // ── Comeback threshold ──────────────────────────────────────────
   static const int comebackThresholdDays = 3;
 

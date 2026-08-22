@@ -66,9 +66,6 @@ class SignalScreen extends ConsumerWidget {
         // Weekly review card
         _WeeklyReviewCard(state: state),
         const SizedBox(height: 13),
-        // Forecast check
-        _ForecastCheck(state: state),
-        const SizedBox(height: 13),
         // Monthly replay
         _MonthlyReplay(state: state),
         const SizedBox(height: 13),
@@ -320,51 +317,6 @@ class _ReviewRow extends StatelessWidget {
         children: [
           Text(label, style: TextStyle(fontSize: 8, color: AppColors.inkFaint)),
           Text(value, style: TextStyle(fontSize: 8, color: AppColors.ink, fontWeight: FontWeight.w800)),
-        ],
-      ),
-    );
-  }
-}
-
-class _ForecastCheck extends StatelessWidget {
-  final AppState state;
-  const _ForecastCheck({required this.state});
-
-  @override
-  Widget build(BuildContext context) {
-    final forecast = state.dailyTarget;
-    final actual = state.todayTotal;
-    final diff = actual - forecast;
-    final diffStr = diff >= 0 ? '+$diff' : '$diff';
-    final isAbove = diff >= 0;
-
-    return Container(
-      decoration: const BoxDecoration(
-        border: Border(left: BorderSide(color: AppColors.signal, width: 3)),
-        color: AppColors.panel,
-      ),
-      padding: const EdgeInsets.all(11),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const MicroLabel('prediction check'),
-                const SizedBox(height: 4),
-                Text('Today\'s forecast · $forecast push-ups', style: AppTypography.heading.copyWith(color: AppColors.ink)),
-                const SizedBox(height: 3),
-                Text('Actual · $actual push-ups', style: TextStyle(fontSize: 8, color: AppColors.inkFaint)),
-              ],
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(diffStr, style: AppTypography.displaySmall.copyWith(color: isAbove ? AppColors.mint : AppColors.signal)),
-              Text(isAbove ? 'ABOVE FORECAST' : 'BELOW FORECAST', style: AppTypography.monoTiny.copyWith(color: AppColors.inkFaint)),
-            ],
-          ),
         ],
       ),
     );

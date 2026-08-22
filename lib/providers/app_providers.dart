@@ -3,10 +3,8 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/models/daily_stats.dart';
-import '../data/models/daily_drop.dart';
 import '../data/services/auth_service.dart';
 import '../data/services/firestore_service.dart';
-import '../data/services/forecast_calculator.dart';
 import '../data/services/heatmap_calculator.dart';
 import '../data/services/stats_calculator.dart';
 import '../data/services/notification_service.dart';
@@ -14,7 +12,6 @@ import '../data/services/notification_service.dart';
 // ── Services (singletons) ─────────────────────────────────────────
 final authServiceProvider = Provider((_) => AuthService());
 final firestoreServiceProvider = Provider((_) => FirestoreService());
-final forecastCalculatorProvider = Provider((_) => const ForecastCalculator());
 final heatmapCalculatorProvider = Provider((_) => const HeatmapCalculator());
 final statsCalculatorProvider = Provider((_) => const StatsCalculator());
 
@@ -163,7 +160,6 @@ class AppState {
   final String username;
   final String displayName;
   final String photoUrl;
-  final DailyDrop dailyDrop;
   final String commitment;
   final List<Map<String, dynamic>> friends;
   final List<Map<String, dynamic>> requests;
@@ -182,13 +178,12 @@ class AppState {
     this.username = '',
     this.displayName = '',
     this.photoUrl = '',
-    DailyDrop? dailyDrop,
     this.commitment = '20 push-ups before 9 PM',
     this.friends = const [],
     this.requests = const [],
     this.squads = const [],
     this.unlockedAchievements = const {},
-  }) : dailyDrop = dailyDrop ?? DailyDrop.todayDrop;
+  });
 
   int get todayRemaining => (dailyTarget - todayTotal).clamp(0, 9999);
   double get todayProgress => dailyTarget > 0 ? (todayTotal / dailyTarget).clamp(0.0, 1.0) : 0.0;
@@ -223,7 +218,6 @@ class AppState {
     String? username,
     String? displayName,
     String? photoUrl,
-    DailyDrop? dailyDrop,
     String? commitment,
     List<Map<String, dynamic>>? friends,
     List<Map<String, dynamic>>? requests,
@@ -242,7 +236,6 @@ class AppState {
       username: username ?? this.username,
       displayName: displayName ?? this.displayName,
       photoUrl: photoUrl ?? this.photoUrl,
-      dailyDrop: dailyDrop ?? this.dailyDrop,
       commitment: commitment ?? this.commitment,
       friends: friends ?? this.friends,
       requests: requests ?? this.requests,
@@ -360,14 +353,6 @@ class AppStateNotifier extends StateNotifier<AppState> {
     await firestore.logPushUps(count);
   }
 
-  /// Cycle daily drop.
-  void cycleDailyDrop() {
-    final drops = DailyDrop.fallbacks;
-    final currentIndex = drops.indexWhere((d) => d.title == state.dailyDrop.title);
-    final nextIndex = (currentIndex + 1) % drops.length;
-    state = state.copyWith(dailyDrop: drops[nextIndex]);
-  }
-
   /// Cycle commitment.
   void cycleCommitment() {
     const commitments = [
@@ -449,16 +434,16 @@ class AppStateNotifier extends StateNotifier<AppState> {
     final bestStreak = _calculateBestStreak(stats);
 
     if (totalPushUps >= 1) unlocked.add('first_push');
-    if (todayTotal >= 100 || stats.values.any((d) => d.totalPushUps >= 100)) unlocked.add('century');
-    if (bestStreak >= 7) unlocked.add('seven_day');
+    if (todayTotal >= 100 || stats.values.any((d) => d.totalPushUps >= 100)) unlocked.add('century_club');
+    if (todayTotal >= 250 || stats.values.any((d) => d.totalPushUps >= 250)) unlocked.add('day_250');
+    if (totalPushUps >= 5000) unlocked.add('total_5000');
+    if (totalPushUps >= 10000) unlocked.add('total_10000');
+    if (bestStreak >= 7) unlocked.add('streak_7');
+    if (bestStreak >= 14) unlocked.add('streak_14');
+    if (bestStreak >= 30) unlocked.add('streak_30');
+    if (activeDays >= 50) unlocked.add('active_50');
     if (activeDays >= 7) unlocked.add('perfect_week');
-    if (totalPushUps >= 1000) unlocked.add('one_k_total');
-    if (totalPushUps >= 5000) unlocked.add('five_k_total');
-    if (totalPushUps >= 10000) unlocked.add('ten_k_total');
-    if (bestStreak >= 14) unlocked.add('fortnight');
-    if (bestStreak >= 30) unlocked.add('thirty_day');
-    if (activeDays >= 50) unlocked.add('fifty_days');
-    if (activeDays >= 365) unlocked.add('year_motion');
+    if (activeDays >= 365) unlocked.add('full_field');
 
     return unlocked;
   }

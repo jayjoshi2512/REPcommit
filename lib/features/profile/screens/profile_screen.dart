@@ -48,20 +48,18 @@ class ProfileScreen extends ConsumerWidget {
           displayName: state.displayName,
           photoUrl: state.photoUrl,
         ),
-        // Stats grid
+        // Structured stats grid
         _StatsGrid(
           activeDays: activeDays,
           avgPerDay: avgPerDay,
           consistencyPct: consistencyPct,
           currentStreak: state.currentStreak,
         ),
-        // Personal records
-        _PersonalRecordsRow(
+        // Structured personal records
+        _PersonalRecordsSection(
           bestSet: records.bestSet,
           bestDay: records.bestDay,
           bestWeek: records.bestWeek,
-        ),
-        _PersonalRecordsRow2(
           longestStreak: records.longestStreak,
           bestMonthActiveDays: records.bestMonthActiveDays,
         ),
@@ -205,88 +203,178 @@ class _StatsGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: AppColors.line)),
-      ),
-      child: Row(
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(15, 14, 15, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _StatCell(value: '$activeDays', label: 'ACTIVE DAYS'),
-          _StatCell(value: '$avgPerDay', label: 'AVG/DAY'),
-          _StatCell(value: '$consistencyPct%', label: 'CONSISTENCY'),
-          _StatCell(value: '${currentStreak}d', label: 'CURRENT LINE', isLast: true),
+          const SectionHeader(title: 'Overview'),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: _StructuredStatCard(
+                  title: 'CURRENT STREAK',
+                  value: '${currentStreak}d',
+                  sub: 'consecutive active days',
+                  accentColor: AppColors.signal,
+                  icon: Icons.local_fire_department,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _StructuredStatCard(
+                  title: 'CONSISTENCY',
+                  value: '$consistencyPct%',
+                  sub: 'last 7 days active',
+                  accentColor: AppColors.mint,
+                  icon: Icons.ssid_chart,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: _StructuredStatCard(
+                  title: 'ACTIVE DAYS',
+                  value: '$activeDays',
+                  sub: 'total committed days',
+                  accentColor: AppColors.ink,
+                  icon: Icons.calendar_today,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _StructuredStatCard(
+                  title: 'DAILY AVERAGE',
+                  value: '$avgPerDay',
+                  sub: 'reps per active day',
+                  accentColor: AppColors.ink,
+                  icon: Icons.equalizer,
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
   }
 }
 
-class _StatCell extends StatelessWidget {
+class _StructuredStatCard extends StatelessWidget {
+  final String title;
   final String value;
-  final String label;
-  final bool isLast;
-  const _StatCell({required this.value, required this.label, this.isLast = false});
+  final String sub;
+  final Color accentColor;
+  final IconData icon;
+
+  const _StructuredStatCard({
+    required this.title,
+    required this.value,
+    required this.sub,
+    required this.accentColor,
+    required this.icon,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(8, 12, 8, 12),
-        decoration: BoxDecoration(
-          border: isLast ? null : const Border(right: BorderSide(color: AppColors.line)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(value, style: AppTypography.statMedium.copyWith(color: AppColors.ink)),
-            const SizedBox(height: 5),
-            Text(label, style: AppTypography.monoSmall.copyWith(color: AppColors.inkFaint)),
-          ],
-        ),
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.panel,
+        border: Border.all(color: AppColors.lineStrong),
+      ),
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                title,
+                style: AppTypography.monoTiny.copyWith(
+                  color: AppColors.inkFaint,
+                  letterSpacing: 0.6,
+                  fontSize: 9,
+                ),
+              ),
+              Icon(icon, size: 14, color: accentColor),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: AppTypography.displayMedium.copyWith(
+              color: AppColors.ink,
+              fontSize: 24,
+              height: 1.0,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            sub,
+            style: AppTypography.bodyTiny.copyWith(
+              color: AppColors.inkFaint,
+              fontSize: 9,
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _PersonalRecordsRow extends StatelessWidget {
+class _PersonalRecordsSection extends StatelessWidget {
   final int bestSet;
   final int bestDay;
   final int bestWeek;
-  const _PersonalRecordsRow({required this.bestSet, required this.bestDay, required this.bestWeek});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: AppColors.line)),
-      ),
-      child: Row(
-        children: [
-          _RecordCell(label: 'BEST SET', value: '$bestSet', sub: 'push-ups'),
-          _RecordCell(label: 'BEST DAY', value: '$bestDay', sub: 'push-ups'),
-          _RecordCell(label: 'BEST WEEK', value: '$bestWeek', sub: 'push-ups', isLast: true),
-        ],
-      ),
-    );
-  }
-}
-
-class _PersonalRecordsRow2 extends StatelessWidget {
   final int longestStreak;
   final int bestMonthActiveDays;
-  const _PersonalRecordsRow2({required this.longestStreak, required this.bestMonthActiveDays});
+
+  const _PersonalRecordsSection({
+    required this.bestSet,
+    required this.bestDay,
+    required this.bestWeek,
+    required this.longestStreak,
+    required this.bestMonthActiveDays,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: AppColors.line)),
-      ),
-      child: Row(
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(15, 16, 15, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _RecordCell(label: 'LONGEST LINE', value: '$longestStreak', sub: 'days'),
-          _RecordCell(label: 'BEST MONTH', value: '$bestMonthActiveDays', sub: 'active days'),
-          _RecordCell(label: 'LINE RECORD', value: '${longestStreak}d', sub: 'best streak', isLast: true),
+          const SectionHeader(title: 'Personal Records'),
+          const SizedBox(height: 10),
+          Container(
+            decoration: BoxDecoration(
+              color: AppColors.panel,
+              border: Border.all(color: AppColors.lineStrong),
+            ),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    _RecordCell(label: 'BEST SET', value: '$bestSet', sub: 'push-ups'),
+                    _RecordCell(label: 'BEST DAY', value: '$bestDay', sub: 'push-ups'),
+                    _RecordCell(label: 'BEST WEEK', value: '$bestWeek', sub: 'push-ups', isLast: true),
+                  ],
+                ),
+                const Divider(height: 1, color: AppColors.line),
+                Row(
+                  children: [
+                    _RecordCell(label: 'LONGEST LINE', value: '${longestStreak}d', sub: 'best streak'),
+                    _RecordCell(label: 'BEST MONTH', value: '$bestMonthActiveDays', sub: 'active days'),
+                    _RecordCell(label: 'ALL-TIME MAX', value: '$bestSet', sub: 'single set', isLast: true),
+                  ],
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );

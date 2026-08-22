@@ -2,7 +2,6 @@ import 'dart:math';
 
 import '../models/daily_stats.dart';
 import '../models/push_log.dart';
-import '../models/daily_drop.dart';
 
 /// Generates synthetic demo data for development.
 ///
@@ -94,13 +93,6 @@ class DemoDataSeeder {
     }
 
     return logs;
-  }
-
-  /// Generate a daily drop for today.
-  DailyDrop todayDrop() {
-    final drops = DailyDrop.fallbacks;
-    final index = DateTime.now().day % drops.length;
-    return drops[index];
   }
 
   /// Generate demo friend data.

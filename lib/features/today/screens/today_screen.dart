@@ -7,7 +7,6 @@ import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/shared_widgets.dart';
 import '../../../core/extensions/date_extensions.dart';
 import '../../../data/models/daily_stats.dart';
-import '../../../data/services/forecast_calculator.dart';
 
 import '../../../providers/app_providers.dart';
 import '../widgets/heatmap_widget.dart';
@@ -50,9 +49,6 @@ class TodayScreen extends ConsumerWidget {
               // Today heading
               _TodayHead(now: now, state: state),
               const SizedBox(height: 13),
-              // Daily drop
-              _DailyDropCard(state: state, ref: ref),
-              const SizedBox(height: 13),
               // Comeback (conditionally dynamic)
               if (showComeback)
                 Padding(
@@ -70,17 +66,8 @@ class TodayScreen extends ConsumerWidget {
                 onCellTap: (cell) => _openDayView(context, cell),
               ),
               const SizedBox(height: 13),
-              // Forecast
-              _ForecastCard(state: state, ref: ref),
-              const SizedBox(height: 13),
               // Momentum
               _MomentumSection(state: state, ref: ref),
-              const SizedBox(height: 13),
-              // Consistency
-              _ConsistencySection(state: state, ref: ref),
-              const SizedBox(height: 13),
-              // Weekly review strip
-              _WeeklyReviewStrip(state: state),
               const SizedBox(height: 13),
               // Crew pulse
               _CrewPulse(state: state),
@@ -193,7 +180,18 @@ class _TodayHead extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              KickerLabel('${now.day} ${months[now.month - 1]} · ${weekdays[now.weekday - 1]} · @$usernameStr'),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  KickerLabel('${now.day} ${months[now.month - 1]} · ${weekdays[now.weekday - 1]} · '),
+                  Text(
+                    '@$usernameStr',
+                    style: AppTypography.kicker.copyWith(
+                      color: AppColors.signal,
+                    ),
+                  ),
+                ],
+              ),
               const SizedBox(height: 4),
               Text(
                 "Today's signal",
@@ -213,104 +211,6 @@ class _TodayHead extends StatelessWidget {
               style: AppTypography.bodySmall.copyWith(color: AppColors.inkFaint, fontSize: 10),
               textAlign: TextAlign.right,
             ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Daily Drop ──────────────────────────────────────────────────
-class _DailyDropCard extends StatelessWidget {
-  final AppState state;
-  final WidgetRef ref;
-  const _DailyDropCard({required this.state, required this.ref});
-
-  @override
-  Widget build(BuildContext context) {
-    final drop = state.dailyDrop;
-    final now = DateTime.now();
-    final dateLabel = '${now.day.toString().padLeft(2, '0')} ${[
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-    ][now.month - 1]}';
-
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.panel,
-        border: Border.all(color: AppColors.lineStrong),
-      ),
-      padding: const EdgeInsets.all(18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                drop.tag,
-                style: AppTypography.monoSmall.copyWith(
-                  color: AppColors.signal,
-                  letterSpacing: 1.0,
-                  fontSize: 10,
-                ),
-              ),
-              GestureDetector(
-                onTap: () => ref.read(appStateProvider.notifier).cycleDailyDrop(),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'Next drop',
-                      style: AppTypography.mono.copyWith(
-                        color: AppColors.ink,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 10,
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    const Icon(
-                      Icons.refresh,
-                      size: 13,
-                      color: AppColors.ink,
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            drop.title,
-            style: AppTypography.title.copyWith(
-              color: AppColors.ink,
-              fontSize: 18,
-              height: 1.15,
-              letterSpacing: -0.4,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            drop.body,
-            style: AppTypography.bodySmall.copyWith(
-              color: AppColors.inkDim,
-              height: 1.5,
-              fontSize: 12,
-            ),
-          ),
-          const SizedBox(height: 14),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Field note · $dateLabel',
-                style: AppTypography.monoSmall.copyWith(color: AppColors.inkFaint, fontSize: 9),
-              ),
-              Text(
-                drop.typeLabel,
-                style: AppTypography.monoSmall.copyWith(color: AppColors.inkFaint, fontSize: 9),
-              ),
-            ],
           ),
         ],
       ),
@@ -392,90 +292,111 @@ class _PushInstrument extends StatelessWidget {
     final progress = state.todayProgress;
     final pct = (progress * 100).round();
 
+    // Calculate weekly consistency (last 7 days active)
+    final now = DateTime.now();
+    int activeDaysThisWeek = 0;
+    for (var i = 6; i >= 0; i--) {
+      final date = now.subtract(Duration(days: i));
+      final key = '${date.year.toString().padLeft(4, '0')}-'
+          '${date.month.toString().padLeft(2, '0')}-'
+          '${date.day.toString().padLeft(2, '0')}';
+      if ((state.dailyStats[key]?.totalPushUps ?? 0) > 0) {
+        activeDaysThisWeek++;
+      }
+    }
+    final consistencyPct = (activeDaysThisWeek / 7 * 100).round();
+
     return Container(
-      decoration: const BoxDecoration(
-        border: Border(
-          top: BorderSide(color: AppColors.lineStrong),
-          bottom: BorderSide(color: AppColors.lineStrong),
-        ),
+      decoration: BoxDecoration(
+        color: AppColors.panel,
+        border: Border.all(color: AppColors.lineStrong),
       ),
-      padding: const EdgeInsets.symmetric(vertical: 14),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Left: readout
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const MicroLabel('push-ups today'),
-                const SizedBox(height: 8),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.baseline,
-                  textBaseline: TextBaseline.alphabetic,
-                  children: [
-                    Text(
-                      '${state.todayTotal}',
-                      style: AppTypography.displayHero.copyWith(color: AppColors.ink),
-                    ),
-                    const SizedBox(width: 5),
-                    Text(
-                      'PUSH-UPS',
-                      style: AppTypography.mono.copyWith(
-                        color: AppColors.inkFaint,
-                        fontSize: 10,
-                        letterSpacing: 0.2,
+      padding: const EdgeInsets.all(14),
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Left: readout & progress
+            Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const MicroLabel('push-ups today'),
+                  const SizedBox(height: 6),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                    textBaseline: TextBaseline.alphabetic,
+                    children: [
+                      Text(
+                        '${state.todayTotal}',
+                        style: AppTypography.displayHero.copyWith(color: AppColors.ink),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                // Progress bar
-                Container(
-                  height: 6,
-                  color: const Color(0xFF232724),
-                  child: FractionallySizedBox(
-                    alignment: Alignment.centerLeft,
-                    widthFactor: progress,
-                    child: Container(color: AppColors.signal),
+                      const SizedBox(width: 5),
+                      Text(
+                        'PUSH-UPS',
+                        style: AppTypography.mono.copyWith(
+                          color: AppColors.inkFaint,
+                          fontSize: 10,
+                          letterSpacing: 0.2,
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-                const SizedBox(height: 6),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      state.targetReached ? 'GOAL HIT' : '${state.todayRemaining} LEFT',
-                      style: AppTypography.mono.copyWith(color: AppColors.inkFaint),
+                  const SizedBox(height: 8),
+                  // Progress bar
+                  Container(
+                    height: 6,
+                    color: const Color(0xFF232724),
+                    child: FractionallySizedBox(
+                      alignment: Alignment.centerLeft,
+                      widthFactor: progress,
+                      child: Container(color: AppColors.signal),
                     ),
-                    Text(
-                      '$pct%',
-                      style: AppTypography.mono.copyWith(color: AppColors.inkFaint),
-                    ),
-                  ],
-                ),
-              ],
+                  ),
+                  const SizedBox(height: 6),
+                  // Progress status line at bottom
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        state.targetReached ? 'GOAL HIT' : 'PROGRESS',
+                        style: AppTypography.monoSmall.copyWith(color: AppColors.inkFaint),
+                      ),
+                      Text(
+                        '$pct%',
+                        style: AppTypography.monoSmall.copyWith(
+                          color: state.targetReached ? AppColors.mint : AppColors.signal,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
-          // Right: streaks
-          Container(
-            width: 115,
-            margin: const EdgeInsets.only(left: 12),
-            padding: const EdgeInsets.only(left: 12),
-            decoration: const BoxDecoration(
-              border: Border(left: BorderSide(color: AppColors.line)),
+            // Right: side stats panel
+            Container(
+              width: 115,
+              margin: const EdgeInsets.only(left: 14),
+              padding: const EdgeInsets.only(left: 14),
+              decoration: const BoxDecoration(
+                border: Border(left: BorderSide(color: AppColors.line)),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _SideStat(value: '${state.currentStreak}', label: 'DAY STREAK'),
+                  Container(height: 1, color: AppColors.line),
+                  _SideStat(value: '${state.bestStreak}', label: 'BEST STREAK'),
+                  Container(height: 1, color: AppColors.line),
+                  _SideStat(value: '$consistencyPct%', label: 'CONSISTENCY'),
+                ],
+              ),
             ),
-            child: Column(
-              children: [
-                _SideStat(value: '${state.currentStreak}', label: 'DAY STREAK'),
-                const SizedBox(height: 12),
-                Container(height: 1, color: AppColors.line),
-                const SizedBox(height: 12),
-                _SideStat(value: '${state.bestStreak}', label: 'BEST STREAK'),
-              ],
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -492,10 +413,10 @@ class _SideStat extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(value, style: AppTypography.statLarge.copyWith(color: AppColors.ink)),
-        const SizedBox(height: 4),
+        const SizedBox(height: 3),
         Text(
           label,
-          style: AppTypography.monoSmall.copyWith(color: AppColors.inkFaint),
+          style: AppTypography.monoSmall.copyWith(color: AppColors.inkFaint, fontSize: 8),
         ),
       ],
     );
@@ -503,161 +424,6 @@ class _SideStat extends StatelessWidget {
 }
 
 
-
-// ── Forecast Card ───────────────────────────────────────────────
-class _ForecastCard extends StatelessWidget {
-  final AppState state;
-  final WidgetRef ref;
-  const _ForecastCard({required this.state, required this.ref});
-
-  @override
-  Widget build(BuildContext context) {
-    final calculator = ref.read(forecastCalculatorProvider);
-
-    // Get last 28 days.
-    final now = DateTime.now();
-    final days = <DailyStats>[];
-    for (var i = 27; i >= 0; i--) {
-      final date = now.subtract(Duration(days: i));
-      final key = '${date.year.toString().padLeft(4, '0')}-'
-          '${date.month.toString().padLeft(2, '0')}-'
-          '${date.day.toString().padLeft(2, '0')}';
-      days.add(state.dailyStats[key] ?? DailyStats.empty(key));
-    }
-
-    final forecast = calculator.calculate(days);
-
-    return Column(
-      children: [
-        SectionHeader(
-          title: 'Forecast',
-          trailing: forecast != null
-              ? 'learned from ${forecast.windowDays} days'
-              : 'not enough data',
-        ),
-        const SizedBox(height: 8),
-        if (forecast == null)
-          Container(
-            decoration: BoxDecoration(
-              color: AppColors.panel,
-              border: Border.all(color: AppColors.line),
-            ),
-            padding: const EdgeInsets.all(16),
-            child: const EmptyState(message: 'Not enough history yet. Log push-ups for at least 5 active days.'),
-          )
-        else
-          Container(
-            decoration: BoxDecoration(
-              color: AppColors.panel,
-              border: Border.all(color: AppColors.line),
-            ),
-            child: Row(
-              children: [
-                // Main
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.all(13),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const MicroLabel('probable finish'),
-                        const SizedBox(height: 5),
-                        Text(
-                          forecast.rangeLabel,
-                          style: AppTypography.displayMedium.copyWith(
-                            color: AppColors.ink,
-                            fontSize: 28,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text.rich(
-                          TextSpan(
-                            text: 'Recent push-up volume is ${forecast.trend == ForecastTrend.up ? 'up' : forecast.trend == ForecastTrend.down ? 'down' : 'stable'} against your weekday baseline. ',
-                            style: AppTypography.bodyTiny.copyWith(color: AppColors.inkDim),
-                            children: [
-                              TextSpan(
-                                text: forecast.likelyLabel,
-                                style: AppTypography.bodyTiny.copyWith(
-                                  color: AppColors.ink,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              const TextSpan(text: ' is the most likely finish.'),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        // Meter
-                        Row(
-                          children: List.generate(8, (i) {
-                            final filled = i < forecast.filledSegments(8);
-                            return Expanded(
-                              child: Container(
-                                height: 6,
-                                margin: EdgeInsets.only(right: i < 7 ? 3 : 0),
-                                color: filled ? AppColors.mint : const Color(0xFF282C29),
-                              ),
-                            );
-                          }),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                // Side
-                Container(
-                  width: 92,
-                  padding: const EdgeInsets.all(13),
-                  decoration: const BoxDecoration(
-                    border: Border(left: BorderSide(color: AppColors.line)),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const MicroLabel('confidence'),
-                          const SizedBox(height: 4),
-                          Text(
-                            forecast.confidenceLabel,
-                            style: AppTypography.displaySmall.copyWith(
-                              color: AppColors.ink,
-                            ),
-                          ),
-                          const SizedBox(height: 5),
-                          Text(
-                            'model fit',
-                            style: AppTypography.monoSmall.copyWith(color: AppColors.inkFaint),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const MicroLabel('best window'),
-                          const SizedBox(height: 4),
-                          Text(
-                            '9:15 PM',
-                            style: AppTypography.heading.copyWith(
-                              color: AppColors.ink,
-                              fontSize: 13,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-      ],
-    );
-  }
-}
 
 // ── Momentum ────────────────────────────────────────────────────
 class _MomentumSection extends StatelessWidget {
@@ -769,170 +535,6 @@ class _MomentumSection extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-// ── Consistency ─────────────────────────────────────────────────
-class _ConsistencySection extends StatelessWidget {
-  final AppState state;
-  final WidgetRef ref;
-  const _ConsistencySection({required this.state, required this.ref});
-
-  @override
-  Widget build(BuildContext context) {
-    final statsCalc = ref.read(statsCalculatorProvider);
-    final now = DateTime.now();
-
-    // Get last 7 days.
-    final days7 = <DailyStats>[];
-    for (var i = 6; i >= 0; i--) {
-      final date = now.subtract(Duration(days: i));
-      final key = '${date.year.toString().padLeft(4, '0')}-'
-          '${date.month.toString().padLeft(2, '0')}-'
-          '${date.day.toString().padLeft(2, '0')}';
-      days7.add(state.dailyStats[key] ?? DailyStats.empty(key));
-    }
-
-    final consistency = statsCalc.consistency(days7);
-
-    return Container(
-      decoration: const BoxDecoration(
-        border: Border(
-          top: BorderSide(color: AppColors.lineStrong),
-          bottom: BorderSide(color: AppColors.lineStrong),
-        ),
-      ),
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      child: Column(
-        children: [
-          SectionHeader(
-            title: 'Consistency',
-            trailing: '${consistency.activeDays} / ${consistency.totalDays} days',
-          ),
-          const SizedBox(height: 9),
-          Row(
-            children: [
-              SizedBox(
-                width: 72,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '${consistency.percentage}%',
-                      style: AppTypography.displayLarge.copyWith(
-                        color: AppColors.ink,
-                        fontSize: 38,
-                        height: 0.85,
-                      ),
-                    ),
-                    const SizedBox(height: 5),
-                    Text(
-                      'this week',
-                      style: AppTypography.monoSmall.copyWith(color: AppColors.inkFaint),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      height: 7,
-                      color: const Color(0xFF252925),
-                      child: FractionallySizedBox(
-                        alignment: Alignment.centerLeft,
-                        widthFactor: consistency.percentage / 100,
-                        child: Container(color: AppColors.mint),
-                      ),
-                    ),
-                    const SizedBox(height: 7),
-                    Text(
-                      'Consistency beats one huge day. Small sets still light the square.',
-                      style: TextStyle(
-                        fontSize: 8,
-                        height: 1.4,
-                        color: AppColors.inkFaint,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Weekly Review Strip ─────────────────────────────────────────
-class _WeeklyReviewStrip extends StatelessWidget {
-  final AppState state;
-  const _WeeklyReviewStrip({required this.state});
-
-  @override
-  Widget build(BuildContext context) {
-    // Compute real weekly stats.
-    final now = DateTime.now();
-    int activeDays = 0;
-    int weekTotal = 0;
-    for (int i = 0; i < 7; i++) {
-      final day = now.subtract(Duration(days: i));
-      final key = '${day.year.toString().padLeft(4, '0')}-'
-          '${day.month.toString().padLeft(2, '0')}-'
-          '${day.day.toString().padLeft(2, '0')}';
-      final stats = state.dailyStats[key];
-      if (stats != null && stats.totalPushUps > 0) {
-        activeDays++;
-        weekTotal += stats.totalPushUps;
-      }
-    }
-
-    return Container(
-      decoration: const BoxDecoration(
-        border: Border(left: BorderSide(color: AppColors.mint, width: 3)),
-        color: AppColors.panel,
-      ),
-      padding: const EdgeInsets.all(11),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const MicroLabel('weekly review'),
-                const SizedBox(height: 4),
-                Text(
-                  '$activeDays / 7 days committed',
-                  style: AppTypography.heading.copyWith(color: AppColors.ink),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '$weekTotal push-ups this week',
-                  style: TextStyle(fontSize: 8, color: AppColors.inkFaint),
-                ),
-              ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 8),
-            decoration: BoxDecoration(
-              border: Border.all(color: AppColors.lineStrong),
-            ),
-            child: Text(
-              'REVIEW ↗',
-              style: AppTypography.mono.copyWith(
-                color: AppColors.ink,
-                fontWeight: FontWeight.w800,
-                fontSize: 7,
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

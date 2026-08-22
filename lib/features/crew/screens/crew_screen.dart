@@ -65,19 +65,41 @@ class _CrewScreenState extends ConsumerState<CrewScreen> {
                 ],
               ),
             ),
-            // Summary bar
-            Container(
-              decoration: const BoxDecoration(
-                border: Border(
-                  top: BorderSide(color: AppColors.line),
-                  bottom: BorderSide(color: AppColors.line),
-                ),
-              ),
+            // Structured summary cards
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
               child: Row(
                 children: [
-                  _SummaryCell(value: '${state.friends.length}', label: 'friends'),
-                  _SummaryCell(value: '${state.squads.length}', label: 'squads'),
-                  _SummaryCell(value: '${state.requests.length}', label: 'requests', isLast: true),
+                  Expanded(
+                    child: _SummaryCard(
+                      label: 'FRIENDS',
+                      value: '${state.friends.length}',
+                      icon: Icons.people_outline,
+                      isActive: _activeTab == 0,
+                      onTap: () => setState(() => _activeTab = 0),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _SummaryCard(
+                      label: 'SQUADS',
+                      value: '${state.squads.length}',
+                      icon: Icons.groups_outlined,
+                      isActive: _activeTab == 1,
+                      onTap: () => setState(() => _activeTab = 1),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _SummaryCard(
+                      label: 'REQUESTS',
+                      value: '${state.requests.length}',
+                      icon: Icons.inbox_outlined,
+                      badgeCount: state.requests.length,
+                      isActive: _activeTab == 2,
+                      onTap: () => setState(() => _activeTab = 2),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -127,26 +149,82 @@ class _CrewScreenState extends ConsumerState<CrewScreen> {
   }
 }
 
-class _SummaryCell extends StatelessWidget {
-  final String value;
+class _SummaryCard extends StatelessWidget {
   final String label;
-  final bool isLast;
-  const _SummaryCell({required this.value, required this.label, this.isLast = false});
+  final String value;
+  final IconData icon;
+  final bool isActive;
+  final int badgeCount;
+  final VoidCallback onTap;
+
+  const _SummaryCard({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.isActive,
+    this.badgeCount = 0,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.fromLTRB(11, 10, 11, 10),
         decoration: BoxDecoration(
-          border: isLast ? null : const Border(right: BorderSide(color: AppColors.line)),
+          color: AppColors.panel,
+          border: Border.all(color: AppColors.lineStrong),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(value, style: AppTypography.statLarge.copyWith(color: AppColors.ink, fontSize: 19)),
-            const SizedBox(height: 2),
-            Text(label, style: AppTypography.monoSmall.copyWith(color: AppColors.inkFaint)),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  label,
+                  style: AppTypography.monoTiny.copyWith(
+                    color: AppColors.inkFaint,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.6,
+                    fontSize: 9,
+                  ),
+                ),
+                Stack(
+                  children: [
+                    Icon(
+                      icon,
+                      size: 14,
+                      color: AppColors.inkFaint,
+                    ),
+                    if (badgeCount > 0)
+                      Positioned(
+                        right: 0,
+                        top: 0,
+                        child: Container(
+                          width: 5,
+                          height: 5,
+                          decoration: const BoxDecoration(
+                            color: AppColors.signal,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              value,
+              style: AppTypography.statLarge.copyWith(
+                color: AppColors.ink,
+                fontSize: 22,
+                height: 1.0,
+              ),
+            ),
           ],
         ),
       ),
@@ -230,12 +308,12 @@ class _FriendsPanelState extends ConsumerState<_FriendsPanel> {
     _lastQuery = cleanQuery;
 
     final firestore = ref.read(firestoreServiceProvider);
-    final user = await firestore.findUserByUsername(cleanQuery);
+    final user = await firestore.findUserByUsernameOrEmail(cleanQuery);
 
     if (mounted && _lastQuery == cleanQuery) {
       setState(() {
         _isSearching = false;
-        if (user != null && (user['username'] as String?)?.toLowerCase() == cleanQuery) {
+        if (user != null) {
           _searchedUser = user;
           _searchedUserNotFound = false;
         } else {
@@ -297,7 +375,7 @@ class _FriendsPanelState extends ConsumerState<_FriendsPanel> {
                   style: AppTypography.body.copyWith(color: AppColors.ink, fontSize: 13),
                   decoration: InputDecoration(
                     border: InputBorder.none,
-                    hintText: 'Search username to add friend...',
+                    hintText: 'Search username or email to add friend...',
                     hintStyle: AppTypography.bodySmall.copyWith(color: AppColors.inkFaint, fontSize: 13),
                     isDense: true,
                     contentPadding: EdgeInsets.zero,
@@ -327,7 +405,7 @@ class _FriendsPanelState extends ConsumerState<_FriendsPanel> {
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 8),
             child: Text(
-              'Checking username @$query in Firestore...',
+              'Checking username or email in Firestore...',
               style: AppTypography.bodySmall.copyWith(color: AppColors.signal),
             ),
           )
@@ -340,28 +418,52 @@ class _FriendsPanelState extends ConsumerState<_FriendsPanel> {
               border: Border.all(color: AppColors.signal),
             ),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
+                // Avatar
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: AppColors.panel,
+                    border: Border.all(color: AppColors.lineStrong),
+                    shape: BoxShape.circle,
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: (_searchedUser!['photoUrl'] as String?)?.isNotEmpty == true
+                      ? Image.network(_searchedUser!['photoUrl'] as String, fit: BoxFit.cover)
+                      : Center(
+                          child: Text(
+                            ((_searchedUser!['displayName'] as String?)?.isNotEmpty == true
+                                    ? (_searchedUser!['displayName'] as String)[0]
+                                    : (_searchedUser!['username'] as String? ?? 'U')[0])
+                                .toUpperCase(),
+                            style: AppTypography.heading.copyWith(color: AppColors.ink, fontSize: 16),
+                          ),
+                        ),
+                ),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        '@${_searchedUser!['username']}',
+                        (_searchedUser!['displayName'] as String?)?.isNotEmpty == true
+                            ? _searchedUser!['displayName'] as String
+                            : '@${_searchedUser!['username']}',
                         style: AppTypography.heading.copyWith(color: AppColors.ink, fontSize: 15),
                       ),
-                      if ((_searchedUser!['displayName'] as String?)?.isNotEmpty == true) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        '@${_searchedUser!['username'] ?? ''}',
+                        style: AppTypography.bodySmall.copyWith(color: AppColors.inkFaint),
+                      ),
+                      if ((_searchedUser!['email'] as String?)?.isNotEmpty == true) ...[
                         const SizedBox(height: 2),
                         Text(
-                          _searchedUser!['displayName'] as String,
-                          style: AppTypography.bodySmall.copyWith(color: AppColors.inkFaint),
+                          _searchedUser!['email'] as String,
+                          style: AppTypography.monoSmall.copyWith(color: AppColors.inkFaint, fontSize: 10),
                         ),
                       ],
-                      const SizedBox(height: 3),
-                      Text(
-                        'Verified user found',
-                        style: AppTypography.monoSmall.copyWith(color: AppColors.mint, fontSize: 10),
-                      ),
                     ],
                   ),
                 ),

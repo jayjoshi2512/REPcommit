@@ -41,9 +41,6 @@ class AchievementDef {
     // Commitment
     AchievementDef(id: 'keep_promise', title: 'Keep a promise', category: 'commitment', shortLabel: 'PLAN'),
 
-    // Forecast
-    AchievementDef(id: 'beat_forecast', title: 'Beat the forecast', category: 'forecast', shortLabel: 'CALL'),
-
     // Social
     AchievementDef(id: 'first_nudge', title: 'First nudge', category: 'social', shortLabel: 'NUDGE'),
     AchievementDef(id: 'crew_of_five', title: 'Crew of five', category: 'social', shortLabel: 'CREW5'),
