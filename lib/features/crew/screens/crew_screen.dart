@@ -4,10 +4,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
+import '../../../core/utils/app_error_handler.dart';
+import '../../../core/widgets/exercise_filter_bar.dart';
+import '../../../core/widgets/notification_bell.dart';
 import '../../../core/widgets/shared_widgets.dart';
+import '../../../data/models/exercise.dart';
 import '../../../providers/app_providers.dart';
 
-/// Crew screen with tabbed Friends / Squads / Requests.
+/// Crew screen with Friends Leaderboard / Friend Requests.
 class CrewScreen extends ConsumerStatefulWidget {
   const CrewScreen({super.key});
 
@@ -16,7 +20,7 @@ class CrewScreen extends ConsumerStatefulWidget {
 }
 
 class _CrewScreenState extends ConsumerState<CrewScreen> {
-  int _activeTab = 0; // 0=Friends, 1=Squads, 2=Requests
+  int _activeTab = 0; // 0=Leaderboard/Friends, 1=Requests
   final _searchController = TextEditingController();
   int? _compareIndex;
 
@@ -43,7 +47,7 @@ class _CrewScreenState extends ConsumerState<CrewScreen> {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const KickerLabel('Social'),
+                      const KickerLabel('Social & Competition'),
                       const SizedBox(height: 4),
                       Text(
                         'Your crew, clearly.',
@@ -51,17 +55,7 @@ class _CrewScreenState extends ConsumerState<CrewScreen> {
                       ),
                     ],
                   ),
-                  Container(
-                    width: 34,
-                    height: 34,
-                    decoration: BoxDecoration(
-                      color: AppColors.panel,
-                      border: Border.all(color: AppColors.line),
-                    ),
-                    child: const Center(
-                      child: Text('⌁', style: TextStyle(fontSize: 16, color: AppColors.ink)),
-                    ),
-                  ),
+                  const NotificationBell(),
                 ],
               ),
             ),
@@ -72,21 +66,11 @@ class _CrewScreenState extends ConsumerState<CrewScreen> {
                 children: [
                   Expanded(
                     child: _SummaryCard(
-                      label: 'FRIENDS',
-                      value: '${state.friends.length}',
-                      icon: Icons.people_outline,
+                      label: 'LEADERBOARD',
+                      value: '${state.friends.length + 1}',
+                      icon: Icons.leaderboard_outlined,
                       isActive: _activeTab == 0,
                       onTap: () => setState(() => _activeTab = 0),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: _SummaryCard(
-                      label: 'SQUADS',
-                      value: '${state.squads.length}',
-                      icon: Icons.groups_outlined,
-                      isActive: _activeTab == 1,
-                      onTap: () => setState(() => _activeTab = 1),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -96,8 +80,8 @@ class _CrewScreenState extends ConsumerState<CrewScreen> {
                       value: '${state.requests.length}',
                       icon: Icons.inbox_outlined,
                       badgeCount: state.requests.length,
-                      isActive: _activeTab == 2,
-                      onTap: () => setState(() => _activeTab = 2),
+                      isActive: _activeTab == 1,
+                      onTap: () => setState(() => _activeTab = 1),
                     ),
                   ),
                 ],
@@ -112,9 +96,17 @@ class _CrewScreenState extends ConsumerState<CrewScreen> {
               margin: const EdgeInsets.symmetric(horizontal: 12),
               child: Row(
                 children: [
-                  _TabButton(label: 'Friends', isActive: _activeTab == 0, onTap: () => setState(() => _activeTab = 0)),
-                  _TabButton(label: 'Squads', isActive: _activeTab == 1, onTap: () => setState(() => _activeTab = 1)),
-                  _TabButton(label: 'Requests', isActive: _activeTab == 2, onTap: () => setState(() => _activeTab = 2), isLast: true),
+                  _TabButton(
+                    label: 'Leaderboard',
+                    isActive: _activeTab == 0,
+                    onTap: () => setState(() => _activeTab = 0),
+                  ),
+                  _TabButton(
+                    label: 'Requests',
+                    isActive: _activeTab == 1,
+                    onTap: () => setState(() => _activeTab = 1),
+                    isLast: true,
+                  ),
                 ],
               ),
             ),
@@ -123,14 +115,13 @@ class _CrewScreenState extends ConsumerState<CrewScreen> {
               child: SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(12, 14, 12, 102),
                 child: switch (_activeTab) {
-                  0 => _FriendsPanel(
+                  0 => _FriendsLeaderboardPanel(
                       state: state,
                       searchController: _searchController,
                       onCompare: (i) => setState(() => _compareIndex = i),
                       onSearchChanged: () => setState(() {}),
                     ),
-                  1 => _SquadsPanel(state: state),
-                  2 => _RequestsPanel(state: state, ref: ref),
+                  1 => _RequestsPanel(state: state, ref: ref),
                   _ => const SizedBox.shrink(),
                 },
               ),
@@ -138,7 +129,7 @@ class _CrewScreenState extends ConsumerState<CrewScreen> {
           ],
         ),
         // Compare overlay
-        if (_compareIndex != null)
+        if (_compareIndex != null && _compareIndex! < state.friends.length)
           _ComparePanel(
             state: state,
             friendIndex: _compareIndex!,
@@ -169,13 +160,16 @@ class _SummaryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
+      behavior: HitTestBehavior.opaque,
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
         padding: const EdgeInsets.fromLTRB(11, 10, 11, 10),
         decoration: BoxDecoration(
           color: AppColors.panel,
-          border: Border.all(color: AppColors.lineStrong),
+          border: Border.all(
+            color: AppColors.lineStrong,
+          ),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -237,7 +231,12 @@ class _TabButton extends StatelessWidget {
   final bool isActive;
   final VoidCallback onTap;
   final bool isLast;
-  const _TabButton({required this.label, required this.isActive, required this.onTap, this.isLast = false});
+  const _TabButton({
+    required this.label,
+    required this.isActive,
+    required this.onTap,
+    this.isLast = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -267,14 +266,14 @@ class _TabButton extends StatelessWidget {
   }
 }
 
-// ── Friends Panel ───────────────────────────────────────────────
-class _FriendsPanel extends ConsumerStatefulWidget {
+// ── Friends Leaderboard Panel ───────────────────────────────────
+class _FriendsLeaderboardPanel extends ConsumerStatefulWidget {
   final AppState state;
   final TextEditingController searchController;
   final void Function(int) onCompare;
   final VoidCallback onSearchChanged;
 
-  const _FriendsPanel({
+  const _FriendsLeaderboardPanel({
     required this.state,
     required this.searchController,
     required this.onCompare,
@@ -282,10 +281,10 @@ class _FriendsPanel extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<_FriendsPanel> createState() => _FriendsPanelState();
+  ConsumerState<_FriendsLeaderboardPanel> createState() => _FriendsLeaderboardPanelState();
 }
 
-class _FriendsPanelState extends ConsumerState<_FriendsPanel> {
+class _FriendsLeaderboardPanelState extends ConsumerState<_FriendsLeaderboardPanel> {
   bool _isSearching = false;
   Map<String, dynamic>? _searchedUser;
   bool _searchedUserNotFound = false;
@@ -326,10 +325,102 @@ class _FriendsPanelState extends ConsumerState<_FriendsPanel> {
 
   @override
   Widget build(BuildContext context) {
+    final selectedFilter = ref.watch(selectedExerciseFilterProvider);
+    final exDef = selectedFilter == 'all'
+        ? ExerciseDef.pushups
+        : ExerciseDef.fromId(selectedFilter);
+
     final query = widget.searchController.text.trim().toLowerCase().replaceFirst('@', '');
-    final visible = widget.state.friends.asMap().entries
-        .where((e) => query.isEmpty || ((e.value['username'] as String?) ?? '').toLowerCase().contains(query))
-        .toList();
+    final currentUserUid = FirebaseAuth.instance.currentUser?.uid ?? '';
+    final username = widget.state.username.isEmpty ? 'you' : widget.state.username;
+    final now = DateTime.now();
+    final todayKey = '${now.year.toString().padLeft(4, '0')}-'
+        '${now.month.toString().padLeft(2, '0')}-'
+        '${now.day.toString().padLeft(2, '0')}';
+    final myExTotals = widget.state.dailyStats[todayKey]?.exerciseTotals ?? {'pushups': widget.state.todayTotal};
+
+    // Helper to get count for selected exercise
+    int getExerciseCount(Map<String, dynamic> item, String exId) {
+      final totals = item['exerciseTotals'] as Map? ?? {};
+      if (totals.containsKey(exId)) {
+        return (totals[exId] as int?) ?? 0;
+      }
+      if (exId == 'pushups') {
+        return (item['todayPushUps'] as int?) ?? 0;
+      }
+      return 0;
+    }
+
+    // Create leaderboard list combining user and friends
+    final leaderboard = <Map<String, dynamic>>[];
+
+    // Add current user
+    leaderboard.add({
+      'uid': currentUserUid,
+      'username': username,
+      'displayName': widget.state.displayName,
+      'todayPushUps': widget.state.todayTotal,
+      'exerciseTotals': myExTotals,
+      'streak': widget.state.currentStreak,
+      'isOnline': true,
+      'isSelf': true,
+      'originalIndex': -1,
+    });
+
+    // Add friends
+    for (var i = 0; i < widget.state.friends.length; i++) {
+      final f = widget.state.friends[i];
+      final fExTotals = Map<String, dynamic>.from(f['exerciseTotals'] as Map? ?? {});
+      final fPush = (f['todayPushUps'] as int?) ?? 0;
+      if (!fExTotals.containsKey('pushups') && fPush > 0) {
+        fExTotals['pushups'] = fPush;
+      }
+
+      leaderboard.add({
+        'uid': f['uid'] ?? '',
+        'id': f['id'] ?? '',
+        'username': f['username'] ?? '',
+        'displayName': f['displayName'] ?? '',
+        'todayPushUps': fPush,
+        'exerciseTotals': fExTotals,
+        'streak': (f['streak'] as int?) ?? 0,
+        'isOnline': (f['isOnline'] as bool?) ?? false,
+        'isSelf': false,
+        'originalIndex': i,
+      });
+    }
+
+    // Sort leaderboard by selected exercise count descending, then streak descending
+    leaderboard.sort((a, b) {
+      final countA = getExerciseCount(a, exDef.id);
+      final countB = getExerciseCount(b, exDef.id);
+      if (countB != countA) return countB.compareTo(countA);
+      final streakA = (a['streak'] as int);
+      final streakB = (b['streak'] as int);
+      return streakB.compareTo(streakA);
+    });
+
+    // Filter by search query if non-empty
+    final filteredLeaderboard = leaderboard.where((entry) {
+      if (query.isEmpty) return true;
+      final uname = (entry['username'] as String).toLowerCase();
+      return uname.contains(query);
+    }).toList();
+
+    // Dynamically collect exercise keys logged by any crew member or enabled by current user
+    final userEnabledIds = ref.watch(userEnabledExercisesProvider);
+    final crewExIdsSet = <String>{...userEnabledIds};
+    for (final item in leaderboard) {
+      final totals = item['exerciseTotals'] as Map? ?? {};
+      for (final entry in totals.entries) {
+        final k = entry.key.toString();
+        final v = entry.value as int? ?? 0;
+        if (k.isNotEmpty && v > 0) {
+          crewExIdsSet.add(k);
+        }
+      }
+    }
+    final crewExerciseIds = crewExIdsSet.toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -338,15 +429,40 @@ class _FriendsPanelState extends ConsumerState<_FriendsPanel> {
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Friends', style: AppTypography.titleSmall.copyWith(color: AppColors.ink)),
+            Row(
+              children: [
+                Text('Leaderboard', style: AppTypography.titleSmall.copyWith(color: AppColors.ink)),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  color: AppColors.signal.withValues(alpha: 0.2),
+                  child: Text(
+                    "TODAY'S RANKINGS",
+                    style: AppTypography.monoSmall.copyWith(
+                      color: AppColors.signal,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 8,
+                    ),
+                  ),
+                ),
+              ],
+            ),
             const SizedBox(height: 3),
             Text(
-              'People you trust to keep showing up.',
+              'Friends and crew ranked by today\'s ${exDef.name.toLowerCase()} commitment.',
               style: AppTypography.bodySmall.copyWith(color: AppColors.inkFaint),
             ),
           ],
         ),
         const SizedBox(height: 10),
+
+        // Exercise Filter Bar (Dynamically fetched crew exercise tabs)
+        ExerciseFilterBar(
+          mode: ExerciseFilterBarMode.all,
+          customExerciseIds: crewExerciseIds,
+        ),
+        const SizedBox(height: 10),
+
         // Search bar
         Container(
           height: 44,
@@ -457,13 +573,6 @@ class _FriendsPanelState extends ConsumerState<_FriendsPanel> {
                         '@${_searchedUser!['username'] ?? ''}',
                         style: AppTypography.bodySmall.copyWith(color: AppColors.inkFaint),
                       ),
-                      if ((_searchedUser!['email'] as String?)?.isNotEmpty == true) ...[
-                        const SizedBox(height: 2),
-                        Text(
-                          _searchedUser!['email'] as String,
-                          style: AppTypography.monoSmall.copyWith(color: AppColors.inkFaint, fontSize: 10),
-                        ),
-                      ],
                     ],
                   ),
                 ),
@@ -477,15 +586,23 @@ class _FriendsPanelState extends ConsumerState<_FriendsPanel> {
                   onPressed: () async {
                     final targetUid = _searchedUser!['uid'] as String?;
                     if (targetUid != null) {
-                      await ref.read(firestoreServiceProvider).sendFriendRequest(targetUid);
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Friend request sent to @${_searchedUser!['username']}')),
-                        );
-                        setState(() {
-                          _searchedUser = null;
-                          widget.searchController.clear();
-                        });
+                      try {
+                        await ref.read(firestoreServiceProvider).sendFriendRequest(targetUid);
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Friend request sent to @${_searchedUser!['username']}')),
+                          );
+                          setState(() {
+                            _searchedUser = null;
+                            widget.searchController.clear();
+                          });
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text(AppErrorHandler.toFriendlyMessage(e))),
+                          );
+                        }
                       }
                     }
                   },
@@ -506,123 +623,259 @@ class _FriendsPanelState extends ConsumerState<_FriendsPanel> {
             ),
           ),
 
-        // Friend list
-        if (visible.isEmpty && query.isNotEmpty && !_searchedUserNotFound && !_isSearching && _searchedUser == null)
+        // Leaderboard List
+        if (filteredLeaderboard.isEmpty && query.isNotEmpty)
           _SearchEmpty(query: query)
-        else if (visible.isEmpty && query.isEmpty)
-          const EmptyState(message: 'Your crew starts with one person.')
         else
-          ...visible.map((entry) => _FriendCard(
-                friend: entry.value,
-                index: entry.key,
-                ref: ref,
-                onCompare: () => widget.onCompare(entry.key),
-              )),
+          ...filteredLeaderboard.asMap().entries.map((entry) {
+            final rank = entry.key + 1;
+            final item = entry.value;
+            final count = getExerciseCount(item, exDef.id);
+            return _LeaderboardCard(
+              rank: rank,
+              item: item,
+              exDef: exDef,
+              activeCount: count,
+              ref: ref,
+              onCompare: () {
+                final orig = item['originalIndex'] as int;
+                if (orig >= 0) widget.onCompare(orig);
+              },
+            );
+          }),
       ],
     );
   }
 }
 
-class _FriendCard extends StatelessWidget {
-  final Map<String, dynamic> friend;
-  final int index;
+class _LeaderboardCard extends StatelessWidget {
+  final int rank;
+  final Map<String, dynamic> item;
+  final ExerciseDef exDef;
+  final int activeCount;
   final WidgetRef ref;
   final VoidCallback onCompare;
 
-  const _FriendCard({
-    required this.friend,
-    required this.index,
+  const _LeaderboardCard({
+    required this.rank,
+    required this.item,
+    required this.exDef,
+    required this.activeCount,
     required this.ref,
     required this.onCompare,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 11),
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: AppColors.line)),
-      ),
+    final isSelf = (item['isSelf'] as bool?) ?? false;
+    final username = (item['username'] as String?) ?? '';
+    final streak = (item['streak'] as int?) ?? 0;
+    final isOnline = (item['isOnline'] as bool?) ?? false;
+
+    // Rank styling
+    final (rankColor, rankLabel) = switch (rank) {
+      1 => (const Color(0xFFFFD700), '#1 👑'),
+      2 => (const Color(0xFFC0C0C0), '#2'),
+      3 => (const Color(0xFFCD7F32), '#3'),
+      _ => (AppColors.inkFaint, '#$rank'),
+    };
+
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onCompare,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: isSelf ? const Color(0xFF1B1816) : AppColors.panel,
+          border: Border.all(
+            color: isSelf ? AppColors.signal : (rank == 1 ? const Color(0xFFFFD700) : AppColors.lineStrong),
+            width: isSelf || rank == 1 ? 1.5 : 1.0,
+          ),
+        ),
       child: Column(
         children: [
           Row(
             children: [
-              // Avatar
+              // Rank badge
               Container(
-                width: 30,
-                height: 30,
+                width: 36,
+                height: 36,
                 decoration: BoxDecoration(
-                  color: AppColors.panel3,
-                  border: Border.all(color: AppColors.lineStrong),
+                  color: rankColor.withValues(alpha: 0.15),
+                  border: Border.all(color: rankColor),
                 ),
                 alignment: Alignment.center,
                 child: Text(
-                  ((friend['username'] as String?) ?? '?')[0].toUpperCase(),
-                  style: AppTypography.mono.copyWith(color: AppColors.ink, fontWeight: FontWeight.w900, fontSize: 9),
+                  rankLabel,
+                  style: AppTypography.monoSmall.copyWith(
+                    color: rankColor,
+                    fontWeight: FontWeight.w900,
+                    fontSize: rank == 1 ? 11 : 12,
+                  ),
                 ),
               ),
-              const SizedBox(width: 9),
+              const SizedBox(width: 10),
+              // User info
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('@${(friend['username'] as String?) ?? ''}', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: AppColors.ink)),
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            '@$username',
+                            style: AppTypography.heading.copyWith(
+                              color: isSelf ? AppColors.signal : AppColors.ink,
+                              fontSize: 13,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (isSelf) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                            color: AppColors.signal,
+                            child: Text(
+                              'YOU',
+                              style: AppTypography.monoTiny.copyWith(
+                                color: const Color(0xFF160D09),
+                                fontWeight: FontWeight.w900,
+                                fontSize: 7,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
                     const SizedBox(height: 3),
                     Text(
-                      '${(friend['isOnline'] as bool? ?? false) ? 'pushing today' : 'last active yesterday'} · ${(friend['streak'] as int?) ?? 0} day line',
+                      '${isOnline ? 'active today' : 'last seen recently'} · $streak day line',
                       style: TextStyle(fontSize: 8, color: AppColors.inkFaint),
                     ),
                   ],
                 ),
               ),
-              Text(
-                '${(friend['todayPushUps'] as int?) ?? 0} push-ups',
-                style: AppTypography.mono.copyWith(color: AppColors.ink, fontWeight: FontWeight.w800, fontSize: 10),
+              const SizedBox(width: 8),
+              // Dynamic Exercise Stat readout
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    '$activeCount',
+                    style: AppTypography.statLarge.copyWith(
+                      color: activeCount > 0 ? exDef.color : AppColors.inkFaint,
+                      fontSize: 20,
+                    ),
+                  ),
+                  Text(
+                    exDef.name.toUpperCase(),
+                    style: AppTypography.monoSmall.copyWith(
+                      color: AppColors.inkFaint,
+                      fontSize: 7,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              const SizedBox(width: 39),
-              GestureDetector(
-                onTap: onCompare,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
-                  decoration: BoxDecoration(border: Border.all(color: AppColors.signal)),
-                  child: Text('COMPARE', style: AppTypography.mono.copyWith(color: AppColors.signal, fontWeight: FontWeight.w800, fontSize: 7)),
+
+          // Actions row (for friends)
+          if (!isSelf) ...[
+            const SizedBox(height: 8),
+            Container(height: 1, color: AppColors.line),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                GestureDetector(
+                  onTap: onCompare,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(border: Border.all(color: AppColors.signal)),
+                    child: Text(
+                      'COMPARE',
+                      style: AppTypography.mono.copyWith(
+                        color: AppColors.signal,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 8,
+                      ),
+                    ),
+                  ),
                 ),
-              ),
-              const SizedBox(width: 5),
-              GestureDetector(
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Nudge sent to @${(friend['username'] as String?) ?? ''}')),
-                  );
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
-                  decoration: BoxDecoration(border: Border.all(color: AppColors.line)),
-                  child: Text('NUDGE', style: AppTypography.mono.copyWith(color: AppColors.ink, fontWeight: FontWeight.w800, fontSize: 7)),
+                const SizedBox(width: 6),
+                GestureDetector(
+                  onTap: () async {
+                    final targetUid = (item['uid'] as String?) ?? '';
+                    try {
+                      await ref.read(firestoreServiceProvider).sendNudge(targetUid, username);
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Nudge sent to @$username!')),
+                        );
+                      }
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text(AppErrorHandler.toFriendlyMessage(e))),
+                        );
+                      }
+                    }
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: AppColors.panel2,
+                      border: Border.all(color: AppColors.lineStrong),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.notifications_active_outlined, size: 10, color: AppColors.ink),
+                        const SizedBox(width: 4),
+                        Text(
+                          'NUDGE',
+                          style: AppTypography.mono.copyWith(
+                            color: AppColors.ink,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 8,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
-              const SizedBox(width: 5),
-              GestureDetector(
-                onTap: () {
-                  ref.read(appStateProvider.notifier).removeFriend(index);
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
-                  decoration: BoxDecoration(border: Border.all(color: AppColors.line)),
-                  child: Text('REMOVE', style: AppTypography.mono.copyWith(color: AppColors.ink, fontWeight: FontWeight.w800, fontSize: 7)),
+                const SizedBox(width: 6),
+                GestureDetector(
+                  onTap: () {
+                    final origIndex = item['originalIndex'] as int;
+                    if (origIndex >= 0) {
+                      ref.read(appStateProvider.notifier).removeFriend(origIndex);
+                    }
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(border: Border.all(color: AppColors.line)),
+                    child: Text(
+                      'REMOVE',
+                      style: AppTypography.mono.copyWith(
+                        color: AppColors.inkFaint,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 8,
+                      ),
+                    ),
+                  ),
                 ),
-              ),
-            ],
-          ),
+              ],
+            ),
+          ],
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 }
 
 class _SearchEmpty extends StatelessWidget {
@@ -639,306 +892,6 @@ class _SearchEmpty extends StatelessWidget {
           const SizedBox(height: 5),
           Text('Nothing matches "@$query".', style: TextStyle(fontSize: 8, color: AppColors.inkFaint)),
           const SizedBox(height: 8),
-          GestureDetector(
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Friend request sent to @$query')),
-              );
-            },
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
-              decoration: BoxDecoration(border: Border.all(color: AppColors.signal)),
-              child: Text('+ ADD @$query', style: AppTypography.mono.copyWith(color: AppColors.signal, fontWeight: FontWeight.w900, fontSize: 7)),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Squads Panel ────────────────────────────────────────────────
-class _SquadsPanel extends ConsumerWidget {
-  final AppState state;
-  const _SquadsPanel({required this.state});
-
-  void _showCreateSquadModal(BuildContext context, WidgetRef ref) {
-    final nameController = TextEditingController();
-    final targetController = TextEditingController(text: '1000');
-    final descController = TextEditingController();
-
-    showModalBottomSheet(
-      context: context,
-      useRootNavigator: true,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Padding(
-        padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-        child: Container(
-          decoration: const BoxDecoration(
-            color: AppColors.panel,
-            border: Border(top: BorderSide(color: AppColors.signal, width: 2)),
-          ),
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'CREATE A NEW SQUAD',
-                style: AppTypography.heading.copyWith(color: AppColors.ink, fontSize: 16),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Gather your crew and tackle a shared push-up goal together.',
-                style: AppTypography.bodySmall.copyWith(color: AppColors.inkFaint, fontSize: 12),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: nameController,
-                autofocus: true,
-                style: AppTypography.body.copyWith(color: AppColors.ink, fontSize: 14),
-                decoration: const InputDecoration(
-                  border: OutlineInputBorder(),
-                  labelText: 'Squad Name (e.g., 1000 Push-Up Challenge)',
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: targetController,
-                keyboardType: TextInputType.number,
-                style: AppTypography.body.copyWith(color: AppColors.ink, fontSize: 14),
-                decoration: const InputDecoration(
-                  border: OutlineInputBorder(),
-                  labelText: 'Target Push-ups (e.g., 1000)',
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: descController,
-                style: AppTypography.body.copyWith(color: AppColors.ink, fontSize: 14),
-                decoration: const InputDecoration(
-                  border: OutlineInputBorder(),
-                  labelText: 'Description / Motto',
-                ),
-              ),
-              const SizedBox(height: 18),
-              GestureDetector(
-                onTap: () async {
-                  final name = nameController.text.trim();
-                  final desc = descController.text.trim();
-                  final target = int.tryParse(targetController.text) ?? 1000;
-                  if (name.isNotEmpty) {
-                    await ref.read(firestoreServiceProvider).createSquad(
-                      name: name,
-                      description: desc,
-                      target: target,
-                    );
-                    if (context.mounted) {
-                      Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Squad "$name" created!')),
-                      );
-                    }
-                  }
-                },
-                child: Container(
-                  width: double.infinity,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: AppColors.signal,
-                    borderRadius: BorderRadius.zero,
-                    border: Border.all(color: AppColors.lineStrong),
-                  ),
-                  alignment: Alignment.center,
-                  child: Text(
-                    'CREATE SQUAD',
-                    style: AppTypography.heading.copyWith(
-                      color: const Color(0xFF150D08),
-                      fontSize: 13,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Squads', style: AppTypography.titleSmall.copyWith(color: AppColors.ink, fontSize: 16)),
-                const SizedBox(height: 3),
-                Text(
-                  'Shared goals, shared contribution field.',
-                  style: AppTypography.bodySmall.copyWith(color: AppColors.inkFaint, fontSize: 11),
-                ),
-              ],
-            ),
-            GestureDetector(
-              onTap: () => _showCreateSquadModal(context, ref),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                decoration: BoxDecoration(
-                  color: AppColors.signal,
-                  borderRadius: BorderRadius.zero,
-                  border: Border.all(color: AppColors.lineStrong),
-                ),
-                child: Text(
-                  '+ CREATE SQUAD',
-                  style: AppTypography.mono.copyWith(
-                    color: const Color(0xFF150D08),
-                    fontWeight: FontWeight.w900,
-                    fontSize: 12,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 14),
-        if (state.squads.isEmpty)
-          const EmptyState(
-            message: 'No active squads yet. Create one to challenge your friends!',
-          )
-        else
-          ...state.squads.map((squad) => _SquadCard(squad: squad, ref: ref)),
-      ],
-    );
-  }
-}
-
-class _SquadCard extends StatelessWidget {
-  final Map<String, dynamic> squad;
-  final WidgetRef ref;
-
-  const _SquadCard({required this.squad, required this.ref});
-
-  @override
-  Widget build(BuildContext context) {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    final squadId = (squad['id'] as String?) ?? '';
-    final squadTarget = (squad['target'] as int?) ?? 1000;
-    final squadProgress = (squad['progress'] as int?) ?? 0;
-    final squadName = (squad['name'] as String?) ?? 'Squad';
-    final squadDesc = (squad['description'] as String?) ?? '';
-    final membersList = (squad['members'] as List<dynamic>?)?.cast<String>() ?? [];
-    final isMember = uid != null && membersList.contains(uid);
-    final progress = squadTarget > 0 ? (squadProgress / squadTarget).clamp(0.0, 1.0) : 0.0;
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: AppColors.panel,
-        borderRadius: BorderRadius.zero,
-        border: Border.all(color: AppColors.lineStrong),
-      ),
-      padding: const EdgeInsets.all(14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      squadName,
-                      style: AppTypography.heading.copyWith(color: AppColors.ink, fontSize: 16),
-                    ),
-                    if (squadDesc.isNotEmpty) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        squadDesc,
-                        style: AppTypography.bodySmall.copyWith(color: AppColors.inkFaint, fontSize: 11),
-                      ),
-                    ],
-                    const SizedBox(height: 4),
-                    Text(
-                      '${membersList.length} members',
-                      style: AppTypography.monoSmall.copyWith(color: AppColors.signal, fontSize: 10),
-                    ),
-                  ],
-                ),
-              ),
-              Text(
-                '$squadProgress / $squadTarget',
-                style: AppTypography.mono.copyWith(color: AppColors.ink, fontWeight: FontWeight.w800, fontSize: 13),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          // Progress bar
-          Container(
-            height: 6,
-            color: const Color(0xFF242824),
-            child: FractionallySizedBox(
-              alignment: Alignment.centerLeft,
-              widthFactor: progress,
-              child: Container(color: AppColors.mint),
-            ),
-          ),
-          const SizedBox(height: 12),
-          // Action button
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                '${(progress * 100).round()}% complete',
-                style: AppTypography.monoSmall.copyWith(color: AppColors.inkFaint, fontSize: 11),
-              ),
-              GestureDetector(
-                onTap: () async {
-                  final firestore = ref.read(firestoreServiceProvider);
-                  if (isMember) {
-                    await firestore.leaveSquad(squadId);
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Left $squadName')),
-                      );
-                    }
-                  } else {
-                    await firestore.joinSquad(squadId);
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Joined $squadName!')),
-                      );
-                    }
-                  }
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: isMember ? AppColors.panel3 : AppColors.signal,
-                    borderRadius: BorderRadius.zero,
-                    border: Border.all(color: AppColors.lineStrong),
-                  ),
-                  child: Text(
-                    isMember ? 'LEAVE SQUAD' : 'JOIN SQUAD',
-                    style: AppTypography.mono.copyWith(
-                      color: isMember ? AppColors.ink : const Color(0xFF150D08),
-                      fontWeight: FontWeight.w900,
-                      fontSize: 11,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
         ],
       ),
     );
@@ -953,6 +906,8 @@ class _RequestsPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final count = state.requests.length;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -962,168 +917,538 @@ class _RequestsPanel extends StatelessWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Requests', style: AppTypography.titleSmall.copyWith(color: AppColors.ink)),
-                const SizedBox(height: 2),
-                Text('People asking to connect with you.',
-                    style: TextStyle(fontSize: 8, color: AppColors.inkFaint)),
+                const KickerLabel('Social Connections'),
+                const SizedBox(height: 4),
+                Text(
+                  'Incoming Requests',
+                  style: AppTypography.titleSmall.copyWith(color: AppColors.ink),
+                ),
               ],
             ),
-            KickerLabel('${state.requests.length}'),
+            if (count > 0)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.signal.withValues(alpha: 0.15),
+                  border: Border.all(color: AppColors.signal),
+                ),
+                child: Text(
+                  '$count PENDING',
+                  style: AppTypography.monoSmall.copyWith(
+                    color: AppColors.signal,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 9,
+                  ),
+                ),
+              ),
           ],
         ),
-        const SizedBox(height: 10),
-        if (state.requests.isEmpty)
-          const EmptyState(message: 'Your inbox is clear.')
+        const SizedBox(height: 4),
+        Text(
+          'Workout partners requesting to connect with your commitment stream.',
+          style: AppTypography.bodySmall.copyWith(color: AppColors.inkFaint, fontSize: 11),
+        ),
+        const SizedBox(height: 14),
+
+        if (count == 0)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 16),
+            decoration: BoxDecoration(
+              color: AppColors.panel,
+              border: Border.all(color: AppColors.lineStrong),
+            ),
+            child: Column(
+              children: [
+                const Icon(Icons.inbox_outlined, size: 32, color: AppColors.inkFaint),
+                const SizedBox(height: 10),
+                Text(
+                  'NO PENDING REQUESTS',
+                  style: AppTypography.mono.copyWith(
+                    color: AppColors.ink,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 11,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'When partners search your handle or send connection invites, they will appear here.',
+                  style: AppTypography.bodySmall.copyWith(color: AppColors.inkFaint, fontSize: 10),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          )
         else
-          ...state.requests.asMap().entries.map((entry) =>
-              _RequestCard(request: entry.value, index: entry.key, ref: ref)),
+          ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: count,
+            separatorBuilder: (_, index) => const SizedBox(height: 8),
+            itemBuilder: (context, idx) {
+              final req = state.requests[idx];
+              final username = (req['username'] as String?) ?? 'user';
+              final displayName = (req['displayName'] as String?) ?? '';
+              final initial = username.isNotEmpty ? username[0].toUpperCase() : 'U';
+
+              return Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.panel,
+                  border: Border.all(color: AppColors.lineStrong),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          width: 38,
+                          height: 38,
+                          decoration: BoxDecoration(
+                            color: AppColors.panel3,
+                            border: Border.all(color: AppColors.lineStrong),
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(
+                            initial,
+                            style: AppTypography.heading.copyWith(
+                              color: AppColors.signal,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '@$username',
+                                style: AppTypography.heading.copyWith(
+                                  color: AppColors.ink,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              if (displayName.isNotEmpty) ...[
+                                const SizedBox(height: 2),
+                                Text(
+                                  displayName,
+                                  style: AppTypography.bodySmall.copyWith(
+                                    color: AppColors.inkFaint,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ],
+                              const SizedBox(height: 2),
+                              Text(
+                                'Pending connection request',
+                                style: AppTypography.monoTiny.copyWith(
+                                  color: AppColors.signal,
+                                  fontSize: 8,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap: () => ref.read(appStateProvider.notifier).acceptRequest(idx),
+                            child: Container(
+                              height: 36,
+                              color: AppColors.signal,
+                              alignment: Alignment.center,
+                              child: Text(
+                                'ACCEPT CONNECTION',
+                                style: AppTypography.mono.copyWith(
+                                  color: const Color(0xFF160D09),
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 9,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap: () => ref.read(appStateProvider.notifier).declineRequest(idx),
+                            child: Container(
+                              height: 36,
+                              decoration: BoxDecoration(
+                                color: AppColors.panel2,
+                                border: Border.all(color: AppColors.lineStrong),
+                              ),
+                              alignment: Alignment.center,
+                              child: Text(
+                                'DECLINE',
+                                style: AppTypography.mono.copyWith(
+                                  color: AppColors.inkFaint,
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 9,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
       ],
     );
   }
 }
 
-class _RequestCard extends StatelessWidget {
-  final Map<String, dynamic> request;
-  final int index;
-  final WidgetRef ref;
-  const _RequestCard({required this.request, required this.index, required this.ref});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: AppColors.line)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 30,
-            height: 30,
-            decoration: BoxDecoration(
-              color: AppColors.panel3,
-              border: Border.all(color: AppColors.lineStrong),
-            ),
-            alignment: Alignment.center,
-            child: Text(((request['username'] as String?) ?? '?')[0].toUpperCase(), style: AppTypography.mono.copyWith(color: AppColors.ink, fontWeight: FontWeight.w900, fontSize: 9)),
-          ),
-          const SizedBox(width: 9),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('@${(request['username'] as String?) ?? ''}', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: AppColors.ink)),
-                const SizedBox(height: 3),
-                Text((request['message'] as String?) ?? 'Wants to join your crew', style: TextStyle(fontSize: 8, color: AppColors.inkFaint)),
-              ],
-            ),
-          ),
-          GestureDetector(
-            onTap: () => ref.read(appStateProvider.notifier).acceptRequest(index),
-            child: Container(
-              height: 28,
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              color: AppColors.mint,
-              alignment: Alignment.center,
-              child: Text('Accept', style: AppTypography.mono.copyWith(
-                color: const Color(0xFF101513), fontWeight: FontWeight.w800, fontSize: 8,
-              )),
-            ),
-          ),
-          const SizedBox(width: 4),
-          GestureDetector(
-            onTap: () => ref.read(appStateProvider.notifier).declineRequest(index),
-            child: Container(
-              height: 28,
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              decoration: BoxDecoration(border: Border.all(color: AppColors.lineStrong)),
-              alignment: Alignment.center,
-              child: Text('×', style: TextStyle(color: AppColors.inkFaint)),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Compare Panel ───────────────────────────────────────────────
-class _ComparePanel extends StatelessWidget {
+// ── Compare Panel Overlay & Detailed Exercise Breakdown ─────────
+class _ComparePanel extends ConsumerWidget {
   final AppState state;
   final int friendIndex;
   final VoidCallback onClose;
-  const _ComparePanel({required this.state, required this.friendIndex, required this.onClose});
+
+  const _ComparePanel({
+    required this.state,
+    required this.friendIndex,
+    required this.onClose,
+  });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final friend = state.friends[friendIndex];
-    final youScore = state.todayTotal;
+    final friendUid = (friend['uid'] as String?) ?? '';
+    final friendUsername = (friend['username'] as String?) ?? 'friend';
+    final friendDisplayName = (friend['displayName'] as String?) ?? '';
     final friendPushUps = (friend['todayPushUps'] as int?) ?? 0;
-    final friendUsername = (friend['username'] as String?) ?? '';
-    final lead = youScore > friendPushUps
-        ? 'You are ahead today.'
-        : youScore < friendPushUps
-            ? '@$friendUsername is ahead today.'
-            : 'You are even today.';
+    final friendStreak = (friend['streak'] as int?) ?? 0;
+    final friendExTotals = Map<String, int>.from(friend['exerciseTotals'] as Map? ?? {});
+    if (!friendExTotals.containsKey('pushups') && friendPushUps > 0) {
+      friendExTotals['pushups'] = friendPushUps;
+    }
 
-    return Positioned.fill(
+    final myUsername = state.username.isEmpty ? 'you' : state.username;
+    final myPushUps = state.todayTotal;
+    final myStreak = state.currentStreak;
+    final now = DateTime.now();
+    final todayKey = '${now.year.toString().padLeft(4, '0')}-'
+        '${now.month.toString().padLeft(2, '0')}-'
+        '${now.day.toString().padLeft(2, '0')}';
+    final myExTotals = state.dailyStats[todayKey]?.exerciseTotals ?? {'pushups': myPushUps};
+
+    // Combine all exercise keys logged by both users today
+    final allExerciseKeys = <String>{...myExTotals.keys, ...friendExTotals.keys}.toList();
+    if (allExerciseKeys.isEmpty) {
+      allExerciseKeys.addAll(['pushups', 'pullups', 'squats']);
+    }
+
+    return GestureDetector(
+      onTap: onClose,
       child: Container(
-        margin: const EdgeInsets.fromLTRB(12, 58, 12, 58),
-        decoration: BoxDecoration(
-          color: AppColors.panel,
-          border: Border.all(color: AppColors.lineStrong),
-        ),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: const BoxDecoration(
-                  border: Border(bottom: BorderSide(color: AppColors.line)),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text('Compare with @$friendUsername', style: AppTypography.heading.copyWith(color: AppColors.ink, fontSize: 15)),
-                    GestureDetector(
-                      onTap: onClose,
-                      child: Text('×', style: TextStyle(fontSize: 18, color: AppColors.inkFaint)),
-                    ),
-                  ],
-                ),
-              ),
-              // Score grid
-              Row(
+        color: const Color(0xDC050606),
+        alignment: Alignment.center,
+        padding: const EdgeInsets.all(16),
+        child: GestureDetector(
+          onTap: () {}, // Prevent tap close when clicking inside card
+          child: Container(
+            color: AppColors.panel,
+            padding: const EdgeInsets.all(16),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _CompareCol(name: 'YOU', score: youScore),
-                  _CompareCol(name: '@$friendUsername', score: friendPushUps, hasBorder: true),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'CREW COMPARISON & BREAKDOWN',
+                              style: AppTypography.monoSmall.copyWith(
+                                color: AppColors.signal,
+                                fontWeight: FontWeight.w900,
+                                fontSize: 9,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              friendDisplayName.isNotEmpty ? friendDisplayName : '@$friendUsername',
+                              style: AppTypography.titleSmall.copyWith(
+                                color: AppColors.ink,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              '@$friendUsername',
+                              style: AppTypography.monoSmall.copyWith(
+                                color: AppColors.inkFaint,
+                                fontSize: 11,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        constraints: const BoxConstraints(),
+                        padding: EdgeInsets.zero,
+                        icon: const Icon(Icons.close, color: AppColors.inkFaint, size: 20),
+                        onPressed: onClose,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Side by Side Summary Card
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _CompareColumn(
+                          username: '@$myUsername',
+                          totalReps: myExTotals.values.fold(0, (sum, v) => sum + v),
+                          streak: myStreak,
+                          isWinner: myPushUps >= friendPushUps,
+                          isSelf: true,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                        color: AppColors.signal,
+                        child: Text(
+                          'VS',
+                          style: AppTypography.monoTiny.copyWith(
+                            color: const Color(0xFF160D09),
+                            fontWeight: FontWeight.w900,
+                            fontSize: 9,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: _CompareColumn(
+                          username: '@$friendUsername',
+                          totalReps: friendExTotals.values.fold(0, (sum, v) => sum + v),
+                          streak: friendStreak,
+                          isWinner: friendPushUps > myPushUps,
+                          isSelf: false,
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 18),
+                  Text(
+                    'TODAY\'S EXERCISE BREAKDOWN',
+                    style: AppTypography.monoSmall.copyWith(
+                      color: AppColors.inkFaint,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 9,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+
+                  // Detailed Exercise Table
+                  Container(
+                    decoration: BoxDecoration(
+                      color: AppColors.panel3,
+                      border: Border.all(color: AppColors.lineStrong),
+                    ),
+                    child: Column(
+                      children: [
+                        // Table Header
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                          color: AppColors.panel,
+                          child: Row(
+                            children: [
+                              Expanded(
+                                flex: 3,
+                                child: Text(
+                                  'EXERCISE',
+                                  style: AppTypography.monoTiny.copyWith(
+                                    color: AppColors.inkFaint,
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 9,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                flex: 2,
+                                child: Text(
+                                  '@$myUsername',
+                                  style: AppTypography.monoTiny.copyWith(
+                                    color: AppColors.signal,
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 9,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                flex: 2,
+                                child: Text(
+                                  '@$friendUsername',
+                                  style: AppTypography.monoTiny.copyWith(
+                                    color: AppColors.ink,
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 9,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Divider(height: 1, color: AppColors.line),
+                        ...allExerciseKeys.asMap().entries.map((entry) {
+                          final idx = entry.key;
+                          final exId = entry.value;
+                          final exName = exId == 'pushups'
+                              ? 'Push-ups'
+                              : (exId == 'pullups'
+                                  ? 'Pull-ups'
+                                  : (exId == 'squats' ? 'Squats' : exId[0].toUpperCase() + exId.substring(1)));
+                          final myVal = myExTotals[exId] ?? 0;
+                          final friendVal = friendExTotals[exId] ?? 0;
+
+                          return Container(
+                            color: idx % 2 == 1 ? AppColors.panel.withValues(alpha: 0.4) : Colors.transparent,
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  flex: 3,
+                                  child: Text(
+                                    exName,
+                                    style: AppTypography.bodySmall.copyWith(
+                                      color: AppColors.ink,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  flex: 2,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 6),
+                                    decoration: BoxDecoration(
+                                      color: myVal > 0 ? AppColors.signal.withValues(alpha: 0.12) : AppColors.panel,
+                                      border: Border.all(
+                                        color: myVal > 0 ? AppColors.signal : AppColors.line,
+                                      ),
+                                    ),
+                                    child: Text(
+                                      '$myVal',
+                                      style: AppTypography.mono.copyWith(
+                                        color: myVal > 0 ? AppColors.signal : AppColors.inkFaint,
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: 12,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  flex: 2,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 6),
+                                    decoration: BoxDecoration(
+                                      color: friendVal > 0 ? AppColors.panel2 : AppColors.panel,
+                                      border: Border.all(
+                                        color: friendVal > 0 ? AppColors.ink : AppColors.line,
+                                      ),
+                                    ),
+                                    child: Text(
+                                      '$friendVal',
+                                      style: AppTypography.mono.copyWith(
+                                        color: friendVal > 0 ? AppColors.ink : AppColors.inkFaint,
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: 12,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 18),
+                  // Nudge Action Button
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () async {
+                      try {
+                        await ref.read(firestoreServiceProvider).sendNudge(friendUid, friendUsername);
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Nudge sent to @$friendUsername!')),
+                          );
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text(AppErrorHandler.toFriendlyMessage(e))),
+                          );
+                        }
+                      }
+                    },
+                    child: Container(
+                      height: 44,
+                      color: AppColors.signal,
+                      alignment: Alignment.center,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.notifications_active_outlined, size: 16, color: Color(0xFF160D09)),
+                          const SizedBox(width: 6),
+                          Text(
+                            'SEND INSTANT NUDGE ⚡',
+                            style: AppTypography.mono.copyWith(
+                              color: const Color(0xFF160D09),
+                              fontWeight: FontWeight.w900,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ],
               ),
-              // Stat rows
-              _CompareStatRow(
-                youLabel: '${state.currentStreak}d', youSub: 'current line',
-                otherLabel: '${(friend['streak'] as int?) ?? 0}d', otherSub: 'current line',
-              ),
-              _CompareStatRow(
-                youLabel: '${state.bestSetEver}', youSub: 'best set',
-                otherLabel: '${(friendPushUps + 12).clamp(20, 99)}', otherSub: 'best set',
-              ),
-              // Conclusion
-              Container(
-                margin: const EdgeInsets.all(12),
-                padding: const EdgeInsets.all(10),
-                decoration: const BoxDecoration(
-                  border: Border(left: BorderSide(color: AppColors.mint, width: 2)),
-                  color: AppColors.panel2,
-                ),
-                child: Text(
-                  '$lead Compare volume here, then tap into the Squad if you want to turn the rivalry into a shared goal.',
-                  style: TextStyle(fontSize: 8, height: 1.45, color: AppColors.inkDim),
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ),
@@ -1131,79 +1456,74 @@ class _ComparePanel extends StatelessWidget {
   }
 }
 
-class _CompareCol extends StatelessWidget {
-  final String name;
-  final int score;
-  final bool hasBorder;
-  const _CompareCol({required this.name, required this.score, this.hasBorder = false});
+class _CompareColumn extends StatelessWidget {
+  final String username;
+  final int totalReps;
+  final int streak;
+  final bool isWinner;
+  final bool isSelf;
 
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          border: Border(
-            bottom: const BorderSide(color: AppColors.line),
-            left: hasBorder ? const BorderSide(color: AppColors.line) : BorderSide.none,
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(name, style: AppTypography.mono.copyWith(color: AppColors.inkFaint, fontWeight: FontWeight.w900, fontSize: 10)),
-            const SizedBox(height: 5),
-            Text('$score', style: AppTypography.displaySmall.copyWith(color: AppColors.ink, fontSize: 26)),
-            const SizedBox(height: 2),
-            Text('PUSH-UPS TODAY', style: AppTypography.monoSmall.copyWith(color: AppColors.inkFaint)),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _CompareStatRow extends StatelessWidget {
-  final String youLabel;
-  final String youSub;
-  final String otherLabel;
-  final String otherSub;
-  const _CompareStatRow({required this.youLabel, required this.youSub, required this.otherLabel, required this.otherSub});
+  const _CompareColumn({
+    required this.username,
+    required this.totalReps,
+    required this.streak,
+    required this.isWinner,
+    required this.isSelf,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: AppColors.line)),
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+      decoration: BoxDecoration(
+        color: isSelf ? AppColors.panel : AppColors.panel2,
+        border: Border.all(
+          color: isWinner ? AppColors.signal : AppColors.lineStrong,
+          width: isWinner ? 1.5 : 1.0,
+        ),
       ),
-      child: Row(
-        children: [
-          Expanded(child: _CompareStat(label: youLabel, sub: youSub)),
-          const SizedBox(width: 8),
-          Expanded(child: _CompareStat(label: otherLabel, sub: otherSub)),
-        ],
-      ),
-    );
-  }
-}
-
-class _CompareStat extends StatelessWidget {
-  final String label;
-  final String sub;
-  const _CompareStat({required this.label, required this.sub});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(9),
-      color: AppColors.panel2,
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Text(label, style: AppTypography.heading.copyWith(color: AppColors.ink)),
-          const SizedBox(height: 2),
-          Text(sub.toUpperCase(), style: AppTypography.monoSmall.copyWith(color: AppColors.inkFaint)),
+          Text(
+            username,
+            style: AppTypography.heading.copyWith(
+              color: isSelf ? AppColors.signal : AppColors.ink,
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 6),
+          Text(
+            '$totalReps',
+            style: AppTypography.statLarge.copyWith(
+              color: isWinner ? AppColors.signal : AppColors.inkFaint,
+              fontSize: 26,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'REPS TODAY',
+            style: AppTypography.monoTiny.copyWith(
+              color: AppColors.inkFaint,
+              fontSize: 8,
+              letterSpacing: 0.5,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            '🔥 $streak-day streak',
+            style: AppTypography.monoSmall.copyWith(
+              color: isWinner ? AppColors.signal : AppColors.inkFaint,
+              fontSize: 9,
+              fontWeight: FontWeight.w600,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
         ],
       ),
     );

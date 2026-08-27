@@ -28,6 +28,9 @@ class AchievementDef {
     AchievementDef(id: 'total_10000', title: '10k total', category: 'personal', shortLabel: '10k'),
     AchievementDef(id: 'dawn_set', title: 'Dawn set', category: 'personal', shortLabel: '6AM'),
     AchievementDef(id: 'night_shift', title: 'Night shift', category: 'personal', shortLabel: 'PM'),
+    AchievementDef(id: 'first_pullup', title: 'First Pull-up', category: 'personal', shortLabel: 'PULL'),
+    AchievementDef(id: 'first_squat', title: 'First Squat', category: 'personal', shortLabel: 'SQT'),
+    AchievementDef(id: 'multi_discipline', title: 'Triple Threat', category: 'personal', shortLabel: 'TRIO'),
 
     // Consistency
     AchievementDef(id: 'streak_7', title: '7-day line', category: 'consistency', shortLabel: '07'),
@@ -46,11 +49,6 @@ class AchievementDef {
     AchievementDef(id: 'crew_of_five', title: 'Crew of five', category: 'social', shortLabel: 'CREW5'),
     AchievementDef(id: 'crew_carry', title: 'Crew carry', category: 'social', shortLabel: 'DUO'),
     AchievementDef(id: 'compare', title: 'Compare', category: 'social', shortLabel: 'VS'),
-
-    // Squad
-    AchievementDef(id: 'squad_founder', title: 'Squad founder', category: 'squad', shortLabel: 'SQUAD'),
-    AchievementDef(id: 'squad_field', title: 'Squad field', category: 'squad', shortLabel: 'FIELD'),
-    AchievementDef(id: 'mission_complete', title: 'Mission complete', category: 'squad', shortLabel: 'MISSION'),
 
     // Reflection
     AchievementDef(id: 'first_review', title: 'First weekly review', category: 'reflection', shortLabel: 'REVIEW'),

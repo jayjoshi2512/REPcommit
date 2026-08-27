@@ -4,6 +4,7 @@
 class DailyStats {
   final String date; // YYYY-MM-DD
   final int totalPushUps;
+  final Map<String, int> exerciseTotals;
   final int sessionCount;
   final DateTime? firstLoggedAt;
   final DateTime? lastLoggedAt;
@@ -15,6 +16,7 @@ class DailyStats {
   const DailyStats({
     required this.date,
     this.totalPushUps = 0,
+    this.exerciseTotals = const {},
     this.sessionCount = 0,
     this.firstLoggedAt,
     this.lastLoggedAt,
@@ -23,6 +25,20 @@ class DailyStats {
     required this.createdAt,
     required this.updatedAt,
   });
+
+  /// Get total for a specific exercise type. Defaults to totalPushUps for 'pushups'.
+  int getTotalForExercise(String exerciseId) {
+    if (exerciseId == 'all') {
+      if (exerciseTotals.isNotEmpty) {
+        return exerciseTotals.values.fold(0, (sum, val) => sum + val);
+      }
+      return totalPushUps;
+    }
+    if (exerciseTotals.containsKey(exerciseId)) {
+      return exerciseTotals[exerciseId]!;
+    }
+    return exerciseId == 'pushups' ? totalPushUps : 0;
+  }
 
   factory DailyStats.empty(String date, {int target = 60}) {
     final now = DateTime.now();
@@ -35,9 +51,22 @@ class DailyStats {
   }
 
   factory DailyStats.fromMap(Map<String, dynamic> map) {
+    final total = map['totalPushUps'] as int? ?? 0;
+    final rawTotals = map['exerciseTotals'] as Map?;
+    final totals = <String, int>{};
+    if (rawTotals != null) {
+      rawTotals.forEach((k, v) {
+        if (k is String && v is int) totals[k] = v;
+      });
+    }
+    if (!totals.containsKey('pushups') && total > 0) {
+      totals['pushups'] = total;
+    }
+
     return DailyStats(
       date: map['date'] as String? ?? '',
-      totalPushUps: map['totalPushUps'] as int? ?? 0,
+      totalPushUps: total,
+      exerciseTotals: totals,
       sessionCount: map['sessionCount'] as int? ?? 0,
       firstLoggedAt: _tryParse(map['firstLoggedAt']),
       lastLoggedAt: _tryParse(map['lastLoggedAt']),
@@ -52,6 +81,7 @@ class DailyStats {
     return {
       'date': date,
       'totalPushUps': totalPushUps,
+      'exerciseTotals': exerciseTotals,
       'sessionCount': sessionCount,
       'firstLoggedAt': firstLoggedAt?.toIso8601String(),
       'lastLoggedAt': lastLoggedAt?.toIso8601String(),
@@ -65,6 +95,7 @@ class DailyStats {
   DailyStats copyWith({
     String? date,
     int? totalPushUps,
+    Map<String, int>? exerciseTotals,
     int? sessionCount,
     DateTime? firstLoggedAt,
     DateTime? lastLoggedAt,
@@ -76,6 +107,7 @@ class DailyStats {
     return DailyStats(
       date: date ?? this.date,
       totalPushUps: totalPushUps ?? this.totalPushUps,
+      exerciseTotals: exerciseTotals ?? this.exerciseTotals,
       sessionCount: sessionCount ?? this.sessionCount,
       firstLoggedAt: firstLoggedAt ?? this.firstLoggedAt,
       lastLoggedAt: lastLoggedAt ?? this.lastLoggedAt,

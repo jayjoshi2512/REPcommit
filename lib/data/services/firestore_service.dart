@@ -119,22 +119,27 @@ class FirestoreService {
 
   // ── Push Logs ─────────────────────────────────────────────────
 
-  /// Log a push-up set.
+  // ── Push / Exercise Logs ───────────────────────────────────────
+
+  /// Log a workout set for any exercise type (defaults to 'pushups').
   ///
   /// Creates a pushLog document AND updates/creates the dailyStats aggregate.
-  Future<void> logPushUps(int count) async {
+  Future<void> logPushUps(int count, {String exerciseId = 'pushups'}) async {
     final uid = _uid;
     if (uid == null) return;
     final now = DateTime.now();
     final dateKey = _dateKey(now);
+    final cleanExId = exerciseId.trim().toLowerCase().replaceAll(' ', '_');
 
     final batch = _db.batch();
 
-    // 1. Create push log.
+    // 1. Create exercise log.
     final logRef = _db.collection('users').doc(uid).collection('pushLogs').doc();
     batch.set(logRef, {
       'id': logRef.id,
+      'amount': count,
       'count': count,
+      'exerciseId': cleanExId,
       'loggedAt': Timestamp.fromDate(now),
       'source': 'manual',
     });
@@ -148,17 +153,30 @@ class FirestoreService {
       final currentTotal = (data['totalPushUps'] as int?) ?? 0;
       final currentSetCount = (data['setCount'] as int?) ?? 0;
       final currentBestSet = (data['bestSet'] as int?) ?? 0;
+      final currentTotals = Map<String, dynamic>.from(data['exerciseTotals'] as Map? ?? {});
+      final currentExTotal = (currentTotals[cleanExId] as int?) ?? (cleanExId == 'pushups' ? currentTotal : 0);
 
-      batch.update(statsRef, {
-        'totalPushUps': currentTotal + count,
+      currentTotals[cleanExId] = currentExTotal + count;
+
+      final updates = <String, dynamic>{
+        'exerciseTotals': currentTotals,
         'setCount': currentSetCount + 1,
         'bestSet': count > currentBestSet ? count : currentBestSet,
         'lastLogAt': Timestamp.fromDate(now),
-      });
+      };
+
+      if (cleanExId == 'pushups') {
+        updates['totalPushUps'] = currentTotal + count;
+      }
+
+      batch.update(statsRef, updates);
     } else {
       batch.set(statsRef, {
         'date': dateKey,
-        'totalPushUps': count,
+        'totalPushUps': cleanExId == 'pushups' ? count : 0,
+        'exerciseTotals': {
+          cleanExId: count,
+        },
         'setCount': 1,
         'bestSet': count,
         'firstLogAt': Timestamp.fromDate(now),
@@ -212,17 +230,10 @@ class FirestoreService {
       final map = <String, DailyStats>{};
       for (final doc in snap.docs) {
         final data = doc.data();
-        final date = data['date'] as String;
-        final now = DateTime.now();
-        map[date] = DailyStats(
-          date: date,
-          totalPushUps: (data['totalPushUps'] as int?) ?? 0,
-          sessionCount: (data['setCount'] as int?) ?? 0,
-          firstLoggedAt: (data['firstLogAt'] as Timestamp?)?.toDate(),
-          lastLoggedAt: (data['lastLogAt'] as Timestamp?)?.toDate(),
-          createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? now,
-          updatedAt: (data['updatedAt'] as Timestamp?)?.toDate() ?? now,
-        );
+        final date = data['date'] as String? ?? '';
+        if (date.isNotEmpty) {
+          map[date] = DailyStats.fromMap(data);
+        }
       }
       return map;
     });
@@ -351,7 +362,16 @@ class FirestoreService {
             .collection('dailyStats')
             .doc(todayKey)
             .get();
-        final todayPushUps = (todayStatsDoc.data()?['totalPushUps'] as int?) ?? 0;
+        final todayData = todayStatsDoc.data() ?? {};
+        final todayPushUps = (todayData['totalPushUps'] as int?) ?? 0;
+        final rawTotals = todayData['exerciseTotals'] as Map? ?? {};
+        final exerciseTotals = <String, int>{};
+        rawTotals.forEach((k, v) {
+          if (k is String && v is int) exerciseTotals[k] = v;
+        });
+        if (!exerciseTotals.containsKey('pushups') && todayPushUps > 0) {
+          exerciseTotals['pushups'] = todayPushUps;
+        }
 
         final lastActive = userData['lastActiveAt'] as Timestamp?;
         final isOnline = lastActive != null &&
@@ -366,6 +386,7 @@ class FirestoreService {
           'photoUrl': userData['photoUrl'] as String? ?? '',
           'isOnline': isOnline,
           'todayPushUps': todayPushUps,
+          'exerciseTotals': exerciseTotals,
           'streak': (userData['currentStreak'] as int?) ?? (todayPushUps > 0 ? 1 : 0),
         });
       }
@@ -415,55 +436,53 @@ class FirestoreService {
   Future<Map<String, dynamic>?> findUserByUsername(String username) =>
       findUserByUsernameOrEmail(username);
 
-  // ── Squads ────────────────────────────────────────────────────
+  // ── Notifications & Nudges ───────────────────────────────────
 
-  /// Create a new squad in Firestore.
-  Future<void> createSquad({
-    required String name,
-    required String description,
-    required int target,
-  }) async {
+  /// Send a nudge notification to a friend.
+  Future<void> sendNudge(String toUid, String friendUsername) async {
     final uid = _uid;
     if (uid == null) return;
 
-    final docRef = _db.collection('squads').doc();
-    await docRef.set({
-      'id': docRef.id,
-      'name': name,
-      'description': description,
-      'target': target,
-      'progress': 0,
-      'members': [uid],
-      'createdBy': uid,
-      'createdAt': FieldValue.serverTimestamp(),
+    final userDoc = await _db.collection('users').doc(uid).get();
+    final senderUsername = (userDoc.data()?['username'] as String?) ?? 'A friend';
+
+    final ref = _db.collection('users').doc(toUid).collection('notifications').doc();
+    await ref.set({
+      'id': ref.id,
+      'type': 'nudge',
+      'fromUid': uid,
+      'fromUsername': senderUsername,
+      'message': '@$senderUsername nudged you to get your workout done!',
+      'timestamp': FieldValue.serverTimestamp(),
+      'read': false,
     });
   }
 
-  /// Join an existing squad.
-  Future<void> joinSquad(String squadId) async {
+  /// Stream notifications for the current user.
+  Stream<List<Map<String, dynamic>>> notificationsStream() {
+    final uid = _uid;
+    if (uid == null) return const Stream.empty();
+
+    return _db
+        .collection('users')
+        .doc(uid)
+        .collection('notifications')
+        .orderBy('timestamp', descending: true)
+        .snapshots()
+        .map((snap) => snap.docs.map((d) => {'id': d.id, ...d.data()}).toList());
+  }
+
+  /// Clear all notifications.
+  Future<void> clearNotifications() async {
     final uid = _uid;
     if (uid == null) return;
 
-    await _db.collection('squads').doc(squadId).update({
-      'members': FieldValue.arrayUnion([uid]),
-    });
-  }
-
-  /// Leave a squad.
-  Future<void> leaveSquad(String squadId) async {
-    final uid = _uid;
-    if (uid == null) return;
-
-    await _db.collection('squads').doc(squadId).update({
-      'members': FieldValue.arrayRemove([uid]),
-    });
-  }
-
-  /// Stream all squads.
-  Stream<List<Map<String, dynamic>>> squadsStream() {
-    return _db.collection('squads').snapshots().map((snap) {
-      return snap.docs.map((d) => {'id': d.id, ...d.data()}).toList();
-    });
+    final snap = await _db.collection('users').doc(uid).collection('notifications').get();
+    final batch = _db.batch();
+    for (final doc in snap.docs) {
+      batch.delete(doc.reference);
+    }
+    await batch.commit();
   }
 
   // ── Danger Zone ──────────────────────────────────────────────

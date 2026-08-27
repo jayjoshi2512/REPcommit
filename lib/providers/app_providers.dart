@@ -98,14 +98,14 @@ final requestsStreamProvider = StreamProvider<List<Map<String, dynamic>>>((ref) 
   return firestore.incomingRequestsStream();
 });
 
-/// Stream of squads.
-final squadsStreamProvider = StreamProvider<List<Map<String, dynamic>>>((ref) {
+/// Stream of notifications.
+final notificationsStreamProvider = StreamProvider<List<Map<String, dynamic>>>((ref) {
   final authState = ref.watch(authStateProvider);
   final user = authState.valueOrNull;
   if (user == null) return const Stream.empty();
 
   final firestore = ref.read(firestoreServiceProvider);
-  return firestore.squadsStream();
+  return firestore.notificationsStream();
 });
 
 // ── Derived State ─────────────────────────────────────────────────
@@ -142,6 +142,31 @@ final usernameProvider = Provider<String>((ref) {
   return (profile?['username'] as String?) ?? '';
 });
 
+/// Currently selected exercise filter ('pushups', 'pullups', 'squats', 'all', or custom id).
+final selectedExerciseFilterProvider = StateProvider<String>((ref) => 'pushups');
+
+/// List of exercises enabled by the user for Today & Signal screens. Default: ['pushups'].
+final userEnabledExercisesProvider =
+    StateNotifierProvider<UserEnabledExercisesNotifier, List<String>>((ref) {
+  return UserEnabledExercisesNotifier();
+});
+
+class UserEnabledExercisesNotifier extends StateNotifier<List<String>> {
+  UserEnabledExercisesNotifier() : super(['pushups']);
+
+  void addExercise(String exId) {
+    if (!state.contains(exId)) {
+      state = [...state, exId];
+    }
+  }
+
+  void removeExercise(String exId) {
+    if (exId != 'pushups' && state.contains(exId)) {
+      state = state.where((id) => id != exId).toList();
+    }
+  }
+}
+
 // ── App State (unified, for backward compat with screens) ─────────
 
 final appStateProvider = StateNotifierProvider<AppStateNotifier, AppState>((ref) {
@@ -163,7 +188,7 @@ class AppState {
   final String commitment;
   final List<Map<String, dynamic>> friends;
   final List<Map<String, dynamic>> requests;
-  final List<Map<String, dynamic>> squads;
+  final List<Map<String, dynamic>> notifications;
   final Set<String> unlockedAchievements;
 
   AppState({
@@ -181,13 +206,22 @@ class AppState {
     this.commitment = '20 push-ups before 9 PM',
     this.friends = const [],
     this.requests = const [],
-    this.squads = const [],
+    this.notifications = const [],
     this.unlockedAchievements = const {},
   });
 
   int get todayRemaining => (dailyTarget - todayTotal).clamp(0, 9999);
   double get todayProgress => dailyTarget > 0 ? (todayTotal / dailyTarget).clamp(0.0, 1.0) : 0.0;
   bool get targetReached => todayTotal >= dailyTarget;
+
+  /// Get today's total for a specific exercise filter.
+  int getTodayTotalFor(String exerciseId) {
+    final now = DateTime.now();
+    final key = _dateKey(now);
+    final stats = dailyStats[key];
+    if (stats == null) return 0;
+    return stats.getTotalForExercise(exerciseId);
+  }
 
   int get thisWeekTotal {
     final now = DateTime.now();
@@ -221,7 +255,7 @@ class AppState {
     String? commitment,
     List<Map<String, dynamic>>? friends,
     List<Map<String, dynamic>>? requests,
-    List<Map<String, dynamic>>? squads,
+    List<Map<String, dynamic>>? notifications,
     Set<String>? unlockedAchievements,
   }) {
     return AppState(
@@ -239,7 +273,7 @@ class AppState {
       commitment: commitment ?? this.commitment,
       friends: friends ?? this.friends,
       requests: requests ?? this.requests,
-      squads: squads ?? this.squads,
+      notifications: notifications ?? this.notifications,
       unlockedAchievements: unlockedAchievements ?? this.unlockedAchievements,
     );
   }
@@ -325,10 +359,21 @@ class AppStateNotifier extends StateNotifier<AppState> {
       }).close,
     );
 
-    // Listen to squads.
+    // Listen to notifications.
     _unsubs.add(
-      _ref.listen(squadsStreamProvider, (prev, next) {
-        state = state.copyWith(squads: next.value ?? []);
+      _ref.listen(notificationsStreamProvider, (prev, next) {
+        final newNotifications = next.valueOrNull ?? [];
+        // Check for new unhandled nudges and trigger system notification
+        final prevCount = state.notifications.length;
+        if (prev != null && newNotifications.length > prevCount) {
+          final newest = newNotifications.first;
+          final msg = (newest['message'] as String?) ?? 'You received a nudge!';
+          NotificationService.instance.showSystemNotification(
+            title: 'RepCommit Nudge',
+            body: msg,
+          );
+        }
+        state = state.copyWith(notifications: newNotifications);
       }).close,
     );
   }
@@ -347,10 +392,10 @@ class AppStateNotifier extends StateNotifier<AppState> {
     );
   }
 
-  /// Log push-ups to Firestore.
-  Future<void> logPushUps(int count) async {
+  /// Log workout set to Firestore (defaults to 'pushups').
+  Future<void> logPushUps(int count, {String exerciseId = 'pushups'}) async {
     final firestore = _ref.read(firestoreServiceProvider);
-    await firestore.logPushUps(count);
+    await firestore.logPushUps(count, exerciseId: exerciseId);
   }
 
   /// Cycle commitment.

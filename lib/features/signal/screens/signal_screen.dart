@@ -7,17 +7,20 @@ import '../../../core/widgets/shared_widgets.dart';
 import '../../../core/extensions/date_extensions.dart';
 import '../../../data/services/stats_calculator.dart';
 import '../../../data/models/daily_stats.dart';
+import '../../../data/models/exercise.dart';
 import '../../../providers/app_providers.dart';
+import '../../../core/widgets/exercise_filter_bar.dart';
+import '../../../core/widgets/notification_bell.dart';
 import '../../today/widgets/heatmap_widget.dart';
 
 /// Signal (Activity) screen.
 ///
 /// Information hierarchy:
-/// 1. Full-year commit field
-/// 2. Week in push-ups
-/// 3. Personal records
-/// 4. Weekly review
-/// 5. Forecast check
+/// 1. Exercise Filter Bar
+/// 2. Full-year commit field
+/// 3. Week in selected exercise
+/// 4. Personal records
+/// 5. Weekly review
 /// 6. Monthly replay
 /// 7. Activity timeline
 class SignalScreen extends ConsumerWidget {
@@ -26,6 +29,11 @@ class SignalScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(appStateProvider);
+    final activeFilter = ref.watch(selectedExerciseFilterProvider);
+    final exDef = activeFilter == 'all'
+        ? ExerciseDef.pushups
+        : ExerciseDef.fromId(activeFilter);
+
     final statsCalc = ref.read(statsCalculatorProvider);
     final now = DateTime.now();
 
@@ -34,20 +42,23 @@ class SignalScreen extends ConsumerWidget {
       ..sort((a, b) => a.date.compareTo(b.date));
     final records = statsCalc.records(allDays, bestSetValue: state.bestSetEver);
 
-    // Last 7 days for bars.
+    // Last 7 days for selected exercise.
     final last7 = <DailyStats>[];
     for (var i = 6; i >= 0; i--) {
       final date = now.subtract(Duration(days: i));
       final key = date.toLocalDateString();
       last7.add(state.dailyStats[key] ?? DailyStats.empty(key));
     }
-    final weekTotal = last7.fold<int>(0, (s, d) => s + d.totalPushUps);
+    final weekTotal = last7.fold<int>(0, (s, d) => s + d.getTotalForExercise(activeFilter));
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(15, 0, 15, 102),
       children: [
         // Scrollable Signal Header
-        _SignalHeader(weekTotal: weekTotal),
+        _SignalHeader(weekTotal: weekTotal, exName: exDef.name),
+        const SizedBox(height: 10),
+        // Exercise Filter Bar
+        const ExerciseFilterBar(mode: ExerciseFilterBarMode.userOnly),
         const SizedBox(height: 10),
         // Heatmap
         HeatmapWidget(
@@ -57,8 +68,8 @@ class SignalScreen extends ConsumerWidget {
           },
         ),
         const SizedBox(height: 13),
-        // Week in push-ups
-        _WeekBars(last7: last7, weekTotal: weekTotal),
+        // Week in exercise
+        _WeekBars(last7: last7, weekTotal: weekTotal, exDef: exDef, activeFilter: activeFilter),
         const SizedBox(height: 13),
         // Records
         _RecordsGrid(records: records),
@@ -70,15 +81,18 @@ class SignalScreen extends ConsumerWidget {
         _MonthlyReplay(state: state),
         const SizedBox(height: 13),
         // Activity timeline
-        _ActivityTimeline(state: state),
+        _ActivityTimeline(state: state, activeFilter: activeFilter, exDef: exDef),
       ],
     );
   }
 }
 
+
+
 class _SignalHeader extends StatelessWidget {
   final int weekTotal;
-  const _SignalHeader({required this.weekTotal});
+  final String exName;
+  const _SignalHeader({required this.weekTotal, required this.exName});
 
   @override
   Widget build(BuildContext context) {
@@ -87,20 +101,31 @@ class _SignalHeader extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const KickerLabel('ACTIVITY HISTORY'),
-          const SizedBox(height: 4),
-          Text(
-            'All signal',
-            style: AppTypography.displayMedium.copyWith(
-              color: AppColors.ink,
-              fontSize: 28,
-              height: 1.0,
-              letterSpacing: -1.4,
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const KickerLabel('ACTIVITY HISTORY'),
+                  const SizedBox(height: 4),
+                  Text(
+                    'All signal',
+                    style: AppTypography.displayMedium.copyWith(
+                      color: AppColors.ink,
+                      fontSize: 28,
+                      height: 1.0,
+                      letterSpacing: -1.4,
+                    ),
+                  ),
+                ],
+              ),
+              const NotificationBell(),
+            ],
           ),
           const SizedBox(height: 4),
           Text(
-            'The raw trail of your effort · $weekTotal push-ups this week',
+            'The raw trail of your effort · $weekTotal ${exName.toLowerCase()} this week',
             style: AppTypography.bodySmall.copyWith(color: AppColors.inkFaint, fontSize: 12),
           ),
         ],
@@ -112,11 +137,22 @@ class _SignalHeader extends StatelessWidget {
 class _WeekBars extends StatelessWidget {
   final List<DailyStats> last7;
   final int weekTotal;
-  const _WeekBars({required this.last7, required this.weekTotal});
+  final ExerciseDef exDef;
+  final String activeFilter;
+
+  const _WeekBars({
+    required this.last7,
+    required this.weekTotal,
+    required this.exDef,
+    required this.activeFilter,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final maxVal = last7.map((d) => d.totalPushUps).reduce((a, b) => a > b ? a : b).clamp(1, 999);
+    final maxVal = last7
+        .map((d) => d.getTotalForExercise(activeFilter))
+        .fold<int>(0, (a, b) => a > b ? a : b)
+        .clamp(1, 999);
     final now = DateTime.now();
 
     return Container(
@@ -127,14 +163,14 @@ class _WeekBars extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       child: Column(
         children: [
-          SectionHeader(title: 'Week in push-ups', trailing: '$weekTotal / 420'),
+          SectionHeader(title: 'Week in ${exDef.name.toLowerCase()}', trailing: '$weekTotal reps'),
           const SizedBox(height: 10),
           SizedBox(
             height: 74,
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: List.generate(last7.length, (i) {
-                final value = last7[i].totalPushUps;
+                final value = last7[i].getTotalForExercise(activeFilter);
                 final height = maxVal > 0
                     ? (value / maxVal * 100).clamp(12, 100).toDouble()
                     : 12.0;
@@ -152,7 +188,7 @@ class _WeekBars extends StatelessWidget {
                           child: FractionallySizedBox(
                             heightFactor: height / 100,
                             child: Container(
-                              color: isToday ? AppColors.signal : AppColors.mint,
+                              color: isToday ? exDef.color : AppColors.mint,
                             ),
                           ),
                         ),
@@ -543,7 +579,14 @@ class _ReplayStatCard extends StatelessWidget {
 
 class _ActivityTimeline extends StatelessWidget {
   final AppState state;
-  const _ActivityTimeline({required this.state});
+  final String activeFilter;
+  final ExerciseDef exDef;
+
+  const _ActivityTimeline({
+    required this.state,
+    required this.activeFilter,
+    required this.exDef,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -555,7 +598,7 @@ class _ActivityTimeline extends StatelessWidget {
       final date = now.subtract(Duration(days: i));
       final key = date.toLocalDateString();
       final stats = state.dailyStats[key];
-      final total = stats?.totalPushUps ?? 0;
+      final total = stats?.getTotalForExercise(activeFilter) ?? 0;
       if (total <= 0) continue;
 
       rows.add(_ActivityRow(
@@ -565,8 +608,10 @@ class _ActivityTimeline extends StatelessWidget {
           'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC',
         ][date.month - 1],
         label: date.relativeLabel,
-        detail: 'Push set · ${stats?.lastLoggedAt?.formattedTime ?? '9:41 PM'}',
+        detail: '${exDef.name} set · ${stats?.lastLoggedAt?.formattedTime ?? '9:41 PM'}',
         amount: total,
+        unitLabel: exDef.name.toLowerCase(),
+        exColor: exDef.color,
         isFirst: rows.isEmpty,
       ));
     }
@@ -582,12 +627,21 @@ class _ActivityTimeline extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 11, 12, 9),
             child: Text(
-              'RECENT PUSHES',
+              'RECENT ${exDef.name.toUpperCase()} SETS',
               style: AppTypography.kicker.copyWith(color: AppColors.inkFaint),
             ),
           ),
           Container(height: 1, color: AppColors.line),
-          ...rows,
+          if (rows.isEmpty)
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(
+                'No ${exDef.name.toLowerCase()} logged recently.',
+                style: AppTypography.bodySmall.copyWith(color: AppColors.inkFaint, fontSize: 11),
+              ),
+            )
+          else
+            ...rows,
         ],
       ),
     );
@@ -600,6 +654,8 @@ class _ActivityRow extends StatelessWidget {
   final String label;
   final String detail;
   final int amount;
+  final String unitLabel;
+  final Color exColor;
   final bool isFirst;
 
   const _ActivityRow({
@@ -608,6 +664,8 @@ class _ActivityRow extends StatelessWidget {
     required this.label,
     required this.detail,
     required this.amount,
+    this.unitLabel = 'reps',
+    this.exColor = AppColors.mint,
     this.isFirst = false,
   });
 
@@ -648,10 +706,10 @@ class _ActivityRow extends StatelessWidget {
             children: [
               Text(
                 '+$amount',
-                style: AppTypography.statLarge.copyWith(color: AppColors.mint, fontSize: 19),
+                style: AppTypography.statLarge.copyWith(color: exColor, fontSize: 19),
               ),
               const SizedBox(height: 4),
-              Text('push-ups', style: AppTypography.monoTiny.copyWith(color: AppColors.inkFaint)),
+              Text(unitLabel, style: AppTypography.monoTiny.copyWith(color: AppColors.inkFaint)),
             ],
           ),
         ],

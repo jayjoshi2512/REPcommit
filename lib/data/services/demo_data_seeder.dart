@@ -116,26 +116,6 @@ class DemoDataSeeder {
     ];
   }
 
-  /// Generate demo squads.
-  List<DemoSquad> generateSquads() {
-    return const [
-      DemoSquad(
-        name: 'Morning Crew',
-        members: 5,
-        target: 250,
-        progress: 184,
-        meta: '50 push-ups / day',
-      ),
-      DemoSquad(
-        name: '1000 Before Sunday',
-        members: 4,
-        target: 4000,
-        progress: 2640,
-        meta: 'shared weekly goal',
-      ),
-    ];
-  }
-
   String _dateKey(DateTime date) {
     return '${date.year.toString().padLeft(4, '0')}-'
         '${date.month.toString().padLeft(2, '0')}-'
@@ -170,18 +150,3 @@ class DemoRequest {
   });
 }
 
-class DemoSquad {
-  final String name;
-  final int members;
-  final int target;
-  final int progress;
-  final String meta;
-
-  const DemoSquad({
-    required this.name,
-    required this.members,
-    required this.target,
-    required this.progress,
-    required this.meta,
-  });
-}

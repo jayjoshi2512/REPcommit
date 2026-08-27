@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import 'core/theme/app_theme.dart';
 import 'core/widgets/app_scaffold.dart';
+import 'core/widgets/shared_widgets.dart';
 import 'features/today/screens/today_screen.dart';
 import 'features/signal/screens/signal_screen.dart';
 import 'features/crew/screens/crew_screen.dart';
@@ -129,13 +130,9 @@ class _SplashScreen extends StatelessWidget {
     return const Scaffold(
       backgroundColor: Color(0xFF0D0F0F),
       body: Center(
-        child: SizedBox(
-          width: 24,
-          height: 24,
-          child: CircularProgressIndicator(
-            strokeWidth: 2,
-            color: Color(0xFFE8613A),
-          ),
+        child: InfiniteSymbolLoader(
+          size: 38,
+          label: 'Initializing REPcommit',
         ),
       ),
     );

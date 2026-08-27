@@ -163,13 +163,9 @@ class _UsernameScreenState extends ConsumerState<UsernameScreen> {
                     ),
                     // Status indicator
                     if (_status == 'checking')
-                      const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: AppColors.inkFaint,
-                        ),
+                      const InfiniteSymbolLoader(
+                        size: 14,
+                        color: AppColors.inkFaint,
                       )
                     else if (_status == 'available')
                       const Text('✓', style: TextStyle(fontSize: 16, color: AppColors.mint))
@@ -209,13 +205,9 @@ class _UsernameScreenState extends ConsumerState<UsernameScreen> {
                   color: _status == 'available' ? AppColors.signal : const Color(0xFF2A2D2B),
                   child: _isSaving
                       ? const Center(
-                          child: SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Color(0xFF16100D),
-                            ),
+                          child: InfiniteSymbolLoader(
+                            size: 18,
+                            color: Color(0xFF16100D),
                           ),
                         )
                       : Center(

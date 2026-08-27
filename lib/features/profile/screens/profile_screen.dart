@@ -6,6 +6,7 @@ import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/shared_widgets.dart';
 import '../../../core/extensions/date_extensions.dart';
 import '../../../data/models/achievement.dart';
+import '../../../core/widgets/notification_bell.dart';
 import '../../../providers/app_providers.dart';
 /// Profile screen — personal record, milestones, field notes, settings.
 class ProfileScreen extends ConsumerWidget {
@@ -113,7 +114,13 @@ class _ProfileHeader extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const KickerLabel('PROFILE'),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const KickerLabel('PROFILE'),
+              const NotificationBell(),
+            ],
+          ),
           const SizedBox(height: 12),
           Row(
             children: [

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
+import '../../../core/utils/app_error_handler.dart';
 import '../../../core/widgets/shared_widgets.dart';
 import '../../../providers/app_providers.dart';
 
@@ -44,7 +45,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     } catch (e) {
       setState(() {
         _isLoading = false;
-        _error = 'Sign-in failed. Please try again.';
+        _error = AppErrorHandler.toFriendlyMessage(e);
       });
     }
   }
@@ -130,13 +131,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                   color: AppColors.signal,
                   child: _isLoading
                       ? const Center(
-                          child: SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Color(0xFF16100D),
-                            ),
+                          child: InfiniteSymbolLoader(
+                            size: 18,
+                            color: Color(0xFF16100D),
                           ),
                         )
                       : Row(

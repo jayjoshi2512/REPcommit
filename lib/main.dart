@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 
 import 'firebase_options.dart';
+import 'data/services/notification_service.dart';
 import 'app.dart';
 
 void main() async {
@@ -16,6 +17,7 @@ void main() async {
   try {
     final options = DefaultFirebaseOptions.currentPlatform;
     await Firebase.initializeApp(options: options);
+    await NotificationService.instance.init();
   } catch (e) {
     debugPrint('Firebase init skipped: $e');
     // App will still launch — auth state will be null, showing auth screen.

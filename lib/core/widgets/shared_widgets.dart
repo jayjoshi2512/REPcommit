@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
@@ -167,5 +168,153 @@ class EmptyState extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+/// Animated Infinity Symbol (∞) Loader.
+class InfiniteSymbolLoader extends StatefulWidget {
+  final double size;
+  final Color? color;
+  final String? label;
+
+  const InfiniteSymbolLoader({
+    super.key,
+    this.size = 42,
+    this.color,
+    this.label,
+  });
+
+  @override
+  State<InfiniteSymbolLoader> createState() => _InfiniteSymbolLoaderState();
+}
+
+class _InfiniteSymbolLoaderState extends State<InfiniteSymbolLoader>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1800),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final activeColor = widget.color ?? AppColors.signal;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        AnimatedBuilder(
+          animation: _controller,
+          builder: (context, child) {
+            return CustomPaint(
+              size: Size(widget.size * 1.8, widget.size),
+              painter: _InfinitySymbolPainter(
+                progress: _controller.value,
+                color: activeColor,
+              ),
+            );
+          },
+        ),
+        if (widget.label != null) ...[
+          const SizedBox(height: 12),
+          Text(
+            widget.label!.toUpperCase(),
+            style: AppTypography.monoSmall.copyWith(
+              color: AppColors.inkFaint,
+              fontSize: 10,
+              letterSpacing: 1.0,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _InfinitySymbolPainter extends CustomPainter {
+  final double progress;
+  final Color color;
+
+  _InfinitySymbolPainter({required this.progress, required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    final center = Offset(w / 2, h / 2);
+    final scale = w * 0.42;
+
+    // 1. Dark Base Track (Thin & crisp)
+    final trackPaint = Paint()
+      ..color = AppColors.lineStrong
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.2;
+
+    final path = Path();
+    const steps = 120;
+    for (var i = 0; i <= steps; i++) {
+      final t = (i / steps) * 2 * math.pi;
+      final denom = 1 + math.sin(t) * math.sin(t);
+      final x = center.dx + (scale * math.cos(t)) / denom;
+      final y = center.dy + (scale * math.sin(t) * math.cos(t)) / denom;
+      if (i == 0) {
+        path.moveTo(x, y);
+      } else {
+        path.lineTo(x, y);
+      }
+    }
+    path.close();
+    canvas.drawPath(path, trackPaint);
+
+    // 2. Breathing Central Halo (Subtle glow)
+    final pulseFactor = 0.5 + 0.5 * math.sin(progress * 2 * math.pi);
+    final auraPaint = Paint()
+      ..color = color.withValues(alpha: 0.08 + 0.12 * pulseFactor)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0 + 1.5 * pulseFactor
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2.0);
+    canvas.drawPath(path, auraPaint);
+
+    // 3. Sleek Thin Neon Laser Comet Trail
+    const trailSegments = 20;
+    for (var i = 0; i < trailSegments; i++) {
+      final subProgress = (progress - (i * 0.015)) % 1.0;
+      final t = (subProgress < 0 ? subProgress + 1.0 : subProgress) * 2 * math.pi;
+      final denom = 1 + math.sin(t) * math.sin(t);
+      final x = center.dx + (scale * math.cos(t)) / denom;
+      final y = center.dy + (scale * math.sin(t) * math.cos(t)) / denom;
+
+      final fadeRatio = 1.0 - (i / trailSegments);
+      final segmentAlpha = (fadeRatio * fadeRatio * 0.95).clamp(0.0, 1.0);
+      final segmentRadius = 2.5 * fadeRatio + 0.8;
+
+      final trailGlow = Paint()
+        ..color = color.withValues(alpha: segmentAlpha * 0.35)
+        ..style = PaintingStyle.fill;
+
+      final trailCore = Paint()
+        ..color = (i == 0 ? Colors.white : color).withValues(alpha: segmentAlpha)
+        ..style = PaintingStyle.fill;
+
+      canvas.drawCircle(Offset(x, y), segmentRadius * 1.3, trailGlow);
+      canvas.drawCircle(Offset(x, y), segmentRadius, trailCore);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _InfinitySymbolPainter oldDelegate) {
+    return oldDelegate.progress != progress || oldDelegate.color != color;
   }
 }

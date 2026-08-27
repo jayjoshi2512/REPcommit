@@ -8,6 +8,9 @@ import '../../../core/widgets/shared_widgets.dart';
 import '../../../core/extensions/date_extensions.dart';
 import '../../../data/models/daily_stats.dart';
 
+import '../../../data/models/exercise.dart';
+import '../../../core/widgets/exercise_filter_bar.dart';
+import '../../../core/widgets/notification_bell.dart';
 import '../../../providers/app_providers.dart';
 import '../widgets/heatmap_widget.dart';
 
@@ -48,6 +51,9 @@ class TodayScreen extends ConsumerWidget {
             children: [
               // Today heading
               _TodayHead(now: now, state: state),
+              const SizedBox(height: 10),
+              // Exercise Filter Bar
+              const ExerciseFilterBar(mode: ExerciseFilterBarMode.today),
               const SizedBox(height: 13),
               // Comeback (conditionally dynamic)
               if (showComeback)
@@ -55,7 +61,7 @@ class TodayScreen extends ConsumerWidget {
                   padding: const EdgeInsets.only(bottom: 13),
                   child: _ComebackStrip(ref: ref),
                 ),
-              // Push-ups instrument
+              // Workout instrument
               _PushInstrument(state: state),
               const SizedBox(height: 13),
               // Goals circular progress card
@@ -89,14 +95,13 @@ class TodayScreen extends ConsumerWidget {
     );
   }
 }
-
 // ── Top Bar ─────────────────────────────────────────────────────
-class _TopBar extends StatelessWidget {
+class _TopBar extends ConsumerWidget {
   final AppState state;
   const _TopBar({required this.state});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 15, 16, 11),
       child: Row(
@@ -126,27 +131,7 @@ class _TopBar extends StatelessWidget {
               ),
             ],
           ),
-          Container(
-            width: 34,
-            height: 34,
-            decoration: BoxDecoration(
-              color: AppColors.panel,
-              border: Border.all(color: AppColors.line),
-            ),
-            child: Stack(
-              children: [
-                const Center(
-                  child: Text('⌁', style: TextStyle(fontSize: 16, color: AppColors.ink)),
-                ),
-                if (state.requests.isNotEmpty)
-                  Positioned(
-                    right: 5,
-                    top: 5,
-                    child: Container(width: 5, height: 5, color: AppColors.signal),
-                  ),
-              ],
-            ),
-          ),
+          const NotificationBell(),
         ],
       ),
     );
@@ -220,6 +205,8 @@ class _TodayHead extends StatelessWidget {
 
 
 
+
+
 // ── Comeback Strip ──────────────────────────────────────────────
 class _ComebackStrip extends StatelessWidget {
   final WidgetRef ref;
@@ -282,14 +269,25 @@ class _ComebackStrip extends StatelessWidget {
   }
 }
 
-// ── Push Instrument ─────────────────────────────────────────────
-class _PushInstrument extends StatelessWidget {
+// ── Push / Workout Instrument ───────────────────────────────────
+class _PushInstrument extends ConsumerWidget {
   final AppState state;
   const _PushInstrument({required this.state});
 
   @override
-  Widget build(BuildContext context) {
-    final progress = state.todayProgress;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final activeFilter = ref.watch(selectedExerciseFilterProvider);
+    final exDef = activeFilter == 'all'
+        ? const ExerciseDef(
+            id: 'all',
+            name: 'Total Reps',
+            icon: Icons.flash_on,
+            color: AppColors.signal,
+          )
+        : ExerciseDef.fromId(activeFilter);
+
+    final exerciseTotalToday = state.getTodayTotalFor(activeFilter);
+    final progress = state.dailyTarget > 0 ? (exerciseTotalToday / state.dailyTarget).clamp(0.0, 1.0) : 0.0;
     final pct = (progress * 100).round();
 
     // Calculate weekly consistency (last 7 days active)
@@ -300,7 +298,8 @@ class _PushInstrument extends StatelessWidget {
       final key = '${date.year.toString().padLeft(4, '0')}-'
           '${date.month.toString().padLeft(2, '0')}-'
           '${date.day.toString().padLeft(2, '0')}';
-      if ((state.dailyStats[key]?.totalPushUps ?? 0) > 0) {
+      final daily = state.dailyStats[key];
+      if (daily != null && daily.getTotalForExercise(activeFilter) > 0) {
         activeDaysThisWeek++;
       }
     }
@@ -322,22 +321,23 @@ class _PushInstrument extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const MicroLabel('push-ups today'),
+                  MicroLabel('${exDef.name.toLowerCase()} today'),
                   const SizedBox(height: 6),
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.baseline,
                     textBaseline: TextBaseline.alphabetic,
                     children: [
                       Text(
-                        '${state.todayTotal}',
+                        '$exerciseTotalToday',
                         style: AppTypography.displayHero.copyWith(color: AppColors.ink),
                       ),
                       const SizedBox(width: 5),
                       Text(
-                        'PUSH-UPS',
+                        exDef.name.toUpperCase(),
                         style: AppTypography.mono.copyWith(
-                          color: AppColors.inkFaint,
+                          color: exDef.color,
                           fontSize: 10,
+                          fontWeight: FontWeight.w800,
                           letterSpacing: 0.2,
                         ),
                       ),
@@ -351,7 +351,7 @@ class _PushInstrument extends StatelessWidget {
                     child: FractionallySizedBox(
                       alignment: Alignment.centerLeft,
                       widthFactor: progress,
-                      child: Container(color: AppColors.signal),
+                      child: Container(color: exDef.color),
                     ),
                   ),
                   const SizedBox(height: 6),
@@ -947,3 +947,4 @@ String _getGreeting() {
     return 'Late night.';
   }
 }
+
