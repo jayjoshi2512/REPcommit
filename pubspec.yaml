@@ -42,6 +42,8 @@ flutter_launcher_icons:
   android: "ic_launcher"
   ios: true
   image_path: "assets/images/REPcommit.png"
+  adaptive_icon_background: "#0C0D0D"
+  adaptive_icon_foreground: "assets/images/REPcommit.png"
   min_sdk_android: 21
 
 flutter:
